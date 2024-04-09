@@ -32,9 +32,9 @@ from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdReques
 
 
 class PlaidUtils:
-    def __init__(self, bq_utils_instance, client_id, client_secret, host):
-        self.bq = bq_utils_instance
-        self.bq_client = self.bq.get_bq_client()
+    def __init__(self, bq_client, client_id, client_secret, host):
+        self.bq_client = bq_client
+        self.bq = BqUtils(bq_client=bq_client)
         self.plaid_client = self.authenticate(client_id, client_secret, host)
 
     def authenticate(self, client_id, client_secret, host):
@@ -138,7 +138,7 @@ class PlaidUtils:
     #     # Wait for the job to complete
     #     query_job.result()
 
-    def add_accounts_to_bq(self, access_token, dataset_id, table_id):
+    def add_accounts_to_bq(self, access_token, dataset_id, table_id, plaid_country_codes):
         """
         Add accounts data to a defined BQ table.
 
@@ -168,6 +168,8 @@ class PlaidUtils:
         products = []
         billed_products = []
 
+        # print(responses)
+
         for r in responses["accounts"]:
             try:
                 persistent_account_ids.append(r["persistent_account_id"])
@@ -192,7 +194,7 @@ class PlaidUtils:
 
         institutions_dict = {}
         for institution_id in distinct_institutions:
-            institution = self.get_institution_by_id(institution_id)
+            institution = self.get_institution_by_id(institution_id, plaid_country_codes)
             institution_name = institution["institution"]["name"]
             institutions_dict[institution_id] = institution_name
 
@@ -267,11 +269,11 @@ class PlaidUtils:
 
         # Wait for job to complete
         status = job.result()
-        print(f"Accounts successfully added to `{table_ref}`")
+        print(f"Accounts successfully added to `{table_ref}` -> access_token: {access_token}")
 
         return
 
-    def get_latest_cursors(self, dataset_id, table_id):
+    def get_latest_cursors(self, dataset_id, table_prefix):
         """
         Get the latest cursor for each access token and store in dict
 
@@ -287,29 +289,25 @@ class PlaidUtils:
         cursors = {}
 
         # define the table where cursors are stored
-        table_ref = self.bq_client.dataset(dataset_id).table(table_id)
+        table_ref = self.bq.get_latest_table_partition(dataset_id, table_prefix)
         cursors_query = f"""
-        SELECT access_token, next_cursor
+        SELECT DISTINCT 
+          access_token,
+          item_id,
+          next_cursor
         FROM `{table_ref}`
-        GROUP BY 1,2s
         """
 
-        df = self.bq.query(cursors_query)
+        cursors_df = self.bq.query(cursors_query)
+        return cursors_df
 
-        # iterate through df and store access_token as key, next_cursor as value
-        for i, row in df.iterrows():
-            cursors[row["access_token"]] = row["next_cursor"]
+    def get_transactions(self, access_token, item_id, next_cursor):
 
-        return cursors
-
-    def get_transactions(self, access_token, next_cursor):
+        # get transactions
         try:
             has_more = True
             removed_transactions = set()
             transactions_df_list = []
-
-            cursors = self.get_latest_cursors(access_token)
-            next_cursor = cursors[access_token]
 
             while has_more:
                 # Fetch transactions for the account
@@ -319,26 +317,54 @@ class PlaidUtils:
                 has_more = response["has_more"]
                 next_cursor = response["next_cursor"]
 
-                transactions = response.to_dict()
+                transactions_json = response.to_dict()
 
-                added_df = self.create_transactions_df(transactions["added"], status_type="ADDED")
+                # self.bq.pretty_print_response(transactions_json)
 
-                modified_df = self.create_transactions_df(transactions["modified"], status_type="MODIFIED")
+                if len(transactions_json["added"]) > 0:
+                    added_df = self.create_transactions_df(transactions_json["added"], "ADDED")
+                    transactions_df_list.append(added_df)
+
+                if len(transactions_json["modified"]) > 0:
+                    modified_df = self.create_transactions_df(transactions_json["modified"], "MODIFIED")
+                    transactions_df_list.append(modified_df)
 
                 # add all removed transactions to removed_transactions list
-                for r in response["removed"]:
-                    removed_transactions.add(r["transaction_id"])
+                if len(transactions_json["removed"]) > 0:
+                    for r in transactions_json["removed"]:
+                        removed_transactions.add(r["transaction_id"])
 
-            print("SUCCESS: retrieved transactions!")
+            transactions_df = pd.concat(transactions_df_list)
 
             # add next cursor back to next_cursor table
+            self.add_cursor_to_bq(
+                item_id=item_id,
+                access_token=access_token,
+                next_cursor=next_cursor,
+                dataset_id="personal_finance",
+                table_id="temp_account_cursors",
+            )
 
-            return transactions
+            print("SUCCESS: retrieved transacstions!")
+
+            return transactions_df, removed_transactions
 
         except ApiException as e:
             print("ERROR:", e)
 
-    def create_transactions_df(transactions, status_type):
+    def add_cursor_to_bq(self, item_id, access_token, next_cursor, dataset_id, table_id):
+        cursors_df = pd.DataFrame({"item_id": [item_id], "access_token": [access_token], "next_cursor": [next_cursor]})
+
+        table_ref = self.bq_client.dataset(dataset_id).table(table_id)
+
+        # Load the DataFrame into the BigQuery table (commit data to storage immediately)
+        job = self.bq_client.load_table_from_dataframe(cursors_df, table_ref)
+
+        # Wait for job to complete
+        status = job.result()
+        print(f"Cursors successfully added to `{table_ref}`")
+
+    def create_transactions_df(self, transactions, status_type):
         account_ids = []
         account_owners = []
         amounts = []
