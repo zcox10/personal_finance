@@ -67,14 +67,12 @@ class BqUtils:
         tables = self.bq_client.list_tables(self.bq_client.dataset(dataset_id))
 
         # Filter tables to only include those matching the prefix
-        matching_tables = [
-            table for table in tables if table.table_id.startswith(table_prefix)
-        ]
+        matching_tables = [table for table in tables if table.table_id.startswith(table_prefix)]
 
         # Get the latest partition
-        latest_partition = max(
-            matching_tables, key=lambda table: table.table_id.split("_")[-1]
-        ).full_table_id.replace(":", ".")
+        latest_partition = max(matching_tables, key=lambda table: table.table_id.split("_")[-1]).full_table_id.replace(
+            ":", "."
+        )
         return latest_partition
 
     def does_bq_table_exist(self, dataset_id, table_id):
@@ -119,11 +117,7 @@ class BqUtils:
                 print(f"`{table_ref}` does not exist!")
                 return
 
-            user_input = (
-                input(f"Are you sure you want to delete `{table_ref}`? (Y/N): ")
-                .strip()
-                .upper()
-            )
+            user_input = input(f"Are you sure you want to delete `{table_ref}`? (Y/N): ").strip().upper()
             print()
             if user_input != "Y":
                 return
@@ -137,9 +131,7 @@ class BqUtils:
         except Exception as e:
             print("ERROR:", e)
 
-    def create_empty_bq_table(
-        self, dataset_id, table_id, table_description, table_schema
-    ):
+    def create_empty_bq_table(self, dataset_id, table_id, table_description, table_schema):
         """
         Creates an empty BQ table based on the specified dataset_id, table_id, table_description, and table_schema
 
@@ -156,9 +148,7 @@ class BqUtils:
         table_ref = self.bq_client.dataset(dataset_id).table(table_id)
 
         if self.does_bq_table_exist(dataset_id, table_id):
-            message = (
-                f"`{table_ref}` already exists. Do you want to overwrite it? (Y/N): \n"
-            )
+            message = f"`{table_ref}` already exists. Do you want to overwrite it? (Y/N): "
             user_input = input(message).strip().upper()
             if user_input != "Y":
                 return
@@ -166,9 +156,7 @@ class BqUtils:
                 self.delete_bq_table(dataset_id, table_id)
 
         # Define your BigQuery table
-        table = bigquery.Table(
-            f"{self.bq_client.project}.{dataset_id}.{table_id}", schema=table_schema
-        )
+        table = bigquery.Table(f"{self.bq_client.project}.{dataset_id}.{table_id}", schema=table_schema)
         table.description = table_description
 
         create_table = self.bq_client.create_table(table)
@@ -208,131 +196,3 @@ class BqUtils:
 
         query_job = self.bq_client.query(query, job_config=job_config)
         return query_job
-
-    def create_accounts_bq_table(self):
-        """
-        Create an empty BQ table to store Plaid financial account data. Stored as "zsc-personal.personal_finance.financial_accounts"
-
-        Args:
-            bq_client (google.cloud.bigquery.client.Client): BigQuery client instance.
-
-        Returns:
-            None
-        """
-
-        dataset_id = "personal_finance"
-        table_id = "financial_accounts"
-        table_description = "Stores all account data.  Field descriptions available at https://plaid.com/docs/api/accounts/#accounts-get-response-accounts-persistent-account-id"
-
-        table_schema = [
-            bigquery.SchemaField(
-                name="item_id", field_type="STRING", mode="NULLABLE", description=""
-            ),
-            bigquery.SchemaField(
-                name="persistent_account_id",
-                field_type="STRING",
-                mode="NULLABLE",
-                description="",
-            ),
-            bigquery.SchemaField(
-                name="account_id", field_type="STRING", mode="NULLABLE", description=""
-            ),
-            bigquery.SchemaField(
-                name="account_mask",
-                field_type="STRING",
-                mode="NULLABLE",
-                description="",
-            ),
-            bigquery.SchemaField(
-                name="account_name",
-                field_type="STRING",
-                mode="NULLABLE",
-                description="",
-            ),
-            bigquery.SchemaField(
-                name="account_official_name",
-                field_type="STRING",
-                mode="NULLABLE",
-                description="",
-            ),
-            bigquery.SchemaField(
-                name="account_type",
-                field_type="STRING",
-                mode="NULLABLE",
-                description="",
-            ),
-            bigquery.SchemaField(
-                name="account_subtype",
-                field_type="STRING",
-                mode="NULLABLE",
-                description="",
-            ),
-            bigquery.SchemaField(
-                name="institution_id",
-                field_type="STRING",
-                mode="NULLABLE",
-                description="",
-            ),
-            bigquery.SchemaField(
-                name="institution_name",
-                field_type="STRING",
-                mode="NULLABLE",
-                description="",
-            ),
-            bigquery.SchemaField(
-                name="access_token",
-                field_type="STRING",
-                mode="NULLABLE",
-                description="",
-            ),
-            bigquery.SchemaField(
-                name="products", field_type="STRING", mode="REPEATED", description=""
-            ),
-            bigquery.SchemaField(
-                name="billed_products",
-                field_type="STRING",
-                mode="REPEATED",
-                description="",
-            ),
-        ]
-
-        # Create accounts table
-        self.create_empty_bq_table(
-            dataset_id, table_id, table_description, table_schema
-        )
-
-    def create_cursors_bq_table(self, offset_days=0):
-        """
-        Create an empty BQ table to store Plaid account cursors in. Stored as "zsc-personal.personal_finance.account_cursors_YYYYMMDD"
-
-        Args:
-            bq_client (google.cloud.bigquery.client.Client): BigQuery client instance.
-
-        Returns:
-            None
-        """
-
-        partition = self.get_partition_date(offset_days=offset_days)
-        dataset_id = "personal_finance"
-        table_id = f"account_cursors_{partition}"
-        table_description = "Stores item/access token cursors as of the latest run. Use latest partition to get most recently provided cursor"
-
-        table_schema = [
-            bigquery.SchemaField(
-                name="item_id", field_type="STRING", mode="NULLABLE", description=""
-            ),
-            bigquery.SchemaField(
-                name="access_token",
-                field_type="STRING",
-                mode="NULLABLE",
-                description="",
-            ),
-            bigquery.SchemaField(
-                name="cursor", field_type="STRING", mode="NULLABLE", description=""
-            ),
-        ]
-
-        # Create cursors table
-        self.create_empty_bq_table(
-            dataset_id, table_id, table_description, table_schema
-        )
