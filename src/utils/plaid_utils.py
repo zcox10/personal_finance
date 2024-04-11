@@ -245,12 +245,12 @@ class PlaidUtils:
 
     def get_latest_cursors(self):
         """
-        Get the latest cursor for each access token and store in dict
+        Get the latest cursor for each access token and store in dataframe
 
         Args:
 
         Returns:
-            dict: Key is access token, value is the latest cursor
+            pandas.DataFrame: Three fields -- (access_token, item_id, next_cursor)
         """
 
         # define the table where cursors are stored
@@ -352,7 +352,7 @@ class PlaidUtils:
 
     def get_access_tokens(self):
         """
-        Gather all Plaid access tokens and items into a df
+        Gather all Plaid access tokens and items into a df. Used in create_cursors_bq_table()
 
         Args:
 
@@ -482,7 +482,7 @@ class PlaidUtils:
 
     def create_transactions_df(self, transactions, status_type):
         """
-        Create a DataFrame containing transaction data.
+        Create a DataFrame containing transaction data from get_transactions().
 
         Args:
             transactions (dict): A dictionary containing transaction information.
