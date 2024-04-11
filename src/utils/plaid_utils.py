@@ -2,6 +2,7 @@ import json
 import pandas as pd
 from google.api_core.exceptions import NotFound
 from utils.bq_utils import BqUtils
+from sql.bq_table_schemas import BqTableSchemas
 
 from plaid.configuration import Configuration
 from plaid.api_client import ApiClient
@@ -36,6 +37,7 @@ class PlaidUtils:
         self.bq_client = bq_client
         self.bq = BqUtils(bq_client=bq_client)
         self.plaid_client = self.authenticate(client_id, client_secret, host)
+        self.bq_tables = BqTableSchemas()
 
     def authenticate(self, client_id, client_secret, host):
         """
@@ -103,50 +105,13 @@ class PlaidUtils:
         except ApiException as e:
             return json.loads(e.body)
 
-    # def create_new_cursors_bq_table(
-    #     bq_client, dataset_id, destination_table_id, accounts_table_id
-    # ):
-
-    #     destination_table_ref = bq_client.dataset(dataset_id).table(destination_table_id)
-    #     if does_bq_table_exist(dataset_id, destination_table_id):
-    #         user_input = (
-    #             input(
-    #                 f"{destination_table_ref} already exists. Do you want to overwrite it? (Y/N): "
-    #             )
-    #             .strip()
-    #             .upper()
-    #         )
-    #         print()
-    #         if user_input != "Y":
-    #             return
-
-    #     accounts_table_ref = bq_client.dataset(dataset_id).table(accounts_table_id)
-    #     cursors_query = f"""
-    #     SELECT DISTINCT
-    #       item_id,
-    #       access_token,
-    #       "" AS next_cursor
-    #     FROM `{accounts_table_ref}`
-    #     """
-
-    #     # Configure the job to write to a new table
-    #     job_config = bigquery.QueryJobConfig(destination=destination_table_ref)
-
-    #     # Start the query, passing in the extra configuration
-    #     query_job = bq_client.query(cursors_query, job_config=job_config)
-
-    #     # Wait for the job to complete
-    #     query_job.result()
-
-    def add_accounts_to_bq(self, access_token, dataset_id, table_id, plaid_country_codes):
+    def add_accounts_to_bq(self, access_token, plaid_country_codes):
         """
         Add accounts data to a defined BQ table.
 
         Args:
             bq_client (google.cloud.bigquery.client.Client): BigQuery client instance.
             access_token (str): Plaid access token.
-            dataset_id (str): ID of the dataset containing the table.
-            table_id (str): ID of the table to which data will be added.
 
         Returns:
             None
@@ -224,17 +189,22 @@ class PlaidUtils:
         )
 
         # Define your BigQuery table reference
-        table_ref = self.bq_client.dataset(dataset_id).table(table_id)
+        plaid_accounts_bq = self.bq_tables.plaid_accounts()
+
+        # concat "{project_id}.{dataset_id}.{table_id}"
+        full_table_name = self.bq.concat_table_name(
+            plaid_accounts_bq["project_id"], plaid_accounts_bq["dataset_id"], plaid_accounts_bq["table_id"]
+        )
 
         # get
         try:
-            get_accts_df = self.bq_client.query(
-                f"""
-            SELECT persistent_account_id, account_id
-            FROM `{table_ref}`
-            GROUP BY 1,2
+            accts_q = f"""
+            SELECT DISTINCT
+              persistent_account_id,
+              account_id
+            FROM `{full_table_name}`
             """
-            ).to_dataframe()
+            get_accts_df = self.bq.query(accts_q)
 
             get_persistent_account_ids = [i for i in get_accts_df["persistent_account_id"].unique() if i is not None]
             duplicate_persistent_account_ids = [i for i in persistent_account_ids if i in get_persistent_account_ids]
@@ -258,50 +228,69 @@ class PlaidUtils:
                 if user_input != "Y":
                     return
         except NotFound:
-            print(f"The table, `{table_ref}`, was not found.")
+            print(f"The table, `{full_table_name}`, was not found.")
             return
         except Exception as e:
             print(e)
             return
 
         # Load the DataFrame into the BigQuery table (commit data to storage immediately)
-        job = self.bq_client.load_table_from_dataframe(accounts_df, table_ref)
+        job = self.bq_client.load_table_from_dataframe(accounts_df, full_table_name)
 
         # Wait for job to complete
         status = job.result()
-        print(f"Accounts successfully added to `{table_ref}` -> access_token: {access_token}")
+        print(f"Accounts successfully added to `{full_table_name}` -> access_token: {access_token}")
 
         return
 
-    def get_latest_cursors(self, dataset_id, table_prefix):
+    def get_latest_cursors(self):
         """
         Get the latest cursor for each access token and store in dict
 
         Args:
-            dataset_id (str): ID of the dataset containing the cursors.
-            table_id (str): ID of the table containing the cursors.
 
         Returns:
             dict: Key is access token, value is the latest cursor
         """
 
-        # creat empty dict to store the access_token : cursor
-        cursors = {}
-
         # define the table where cursors are stored
-        table_ref = self.bq.get_latest_table_partition(dataset_id, table_prefix)
+        plaid_cursors_bq = self.bq_tables.plaid_cursors_YYYYMMDD()
+
+        # concat "{project_id}.{dataset_id}.{table_id}"
+        full_table_name = self.bq.concat_table_name(
+            plaid_cursors_bq["project_id"], plaid_cursors_bq["dataset_id"], plaid_cursors_bq["table_id"]
+        )
+
         cursors_query = f"""
         SELECT DISTINCT 
           access_token,
           item_id,
           next_cursor
-        FROM `{table_ref}`
+        FROM `{full_table_name}`
         """
 
         cursors_df = self.bq.query(cursors_query)
         return cursors_df
 
     def get_transactions(self, access_token, item_id, next_cursor):
+        """
+        Retrieves transactions and handles pagination.
+
+        Retrieves transactions using the provided access token and handles pagination if necessary.
+
+        Args:
+            access_token (str): Access token for Plaid API.
+            item_id (str): ID of the item associated with the transactions.
+            next_cursor (str): Cursor for fetching the next set of transactions.
+
+        Returns:
+            tuple: A tuple containing:
+                - pandas.DataFrame: A DataFrame containing transaction data.
+                - set: A set containing transaction IDs of removed transactions.
+
+        Raises:
+            ApiException: If an error occurs during the API request.
+        """
 
         # get transactions
         try:
@@ -337,12 +326,21 @@ class PlaidUtils:
             transactions_df = pd.concat(transactions_df_list)
 
             # add next cursor back to next_cursor table
+            temp_plaid_cursors_bq = self.bq_tables.temp_plaid_cursors()
+
+            # concat "{project_id}.{dataset_id}.{table_id}"
+            temp_cursors_table_name = self.bq.concat_table_name(
+                temp_plaid_cursors_bq["project_id"],
+                temp_plaid_cursors_bq["dataset_id"],
+                temp_plaid_cursors_bq["table_id"],
+            )
+
+            # add cursor to temp_cursors table
             self.add_cursor_to_bq(
                 item_id=item_id,
                 access_token=access_token,
                 next_cursor=next_cursor,
-                dataset_id="personal_finance",
-                table_id="temp_account_cursors",
+                full_table_name=temp_cursors_table_name,
             )
 
             print("SUCCESS: retrieved transacstions!")
@@ -352,19 +350,147 @@ class PlaidUtils:
         except ApiException as e:
             print("ERROR:", e)
 
-    def add_cursor_to_bq(self, item_id, access_token, next_cursor, dataset_id, table_id):
+    def get_access_tokens(self):
+        """
+        Gather all Plaid access tokens and items into a df
+
+        Args:
+
+        Returns:
+            pandas.DataFrame: Details of the items.
+        """
+
+        # get BQ schema for plaid_accounts table
+        plaid_accounts_bq = self.bq_tables.plaid_accounts()
+
+        # concat "{project_id}.{dataset_id}.{table_id}"
+        full_table_name = self.bq.concat_table_name(
+            plaid_accounts_bq["project_id"],
+            plaid_accounts_bq["dataset_id"],
+            plaid_accounts_bq["table_id"],
+        )
+
+        # generate query to pull access_token and item_id, then return as a df
+        query = f"""
+        SELECT DISTINCT
+          access_token,
+          item_id
+        FROM `{full_table_name}`
+        """
+
+        return self.bq.query(query)
+
+    def create_accounts_bq_table(self, access_tokens, plaid_country_codes):
+        """
+        Creates an empty BigQuery table to store Plaid account data. Uses the provided access tokens
+        to fetch account information from the Plaid API and adds it to the BigQuery table.
+
+        Args:
+            access_tokens (list): A list of access tokens for accessing Plaid API and fetching account data.
+            plaid_country_codes (list): A list of Plaid country codes to specify the country for which accounts are fetched.
+
+        Returns:
+            None
+        """
+
+        # get BQ schema information
+        plaid_accounts_bq = self.bq_tables.plaid_accounts()
+
+        # create empty table to store account data
+        self.bq.create_empty_bq_table(
+            project_id=plaid_accounts_bq["project_id"],
+            dataset_id=plaid_accounts_bq["dataset_id"],
+            table_id=plaid_accounts_bq["table_id"],
+            table_description=plaid_accounts_bq["table_description"],
+            table_schema=plaid_accounts_bq["table_schema"],
+        )
+
+        # add access tokens to new empty accounts table
+        for token in access_tokens:
+            self.add_accounts_to_bq(
+                access_token=token,
+                plaid_country_codes=plaid_country_codes,
+            )
+
+        # Final print statement
+        full_table_name = self.bq.concat_table_name(
+            plaid_accounts_bq["project_id"], plaid_accounts_bq["dataset_id"], plaid_accounts_bq["table_id"]
+        )
+        print(f"SUCCESS: all access tokens added to `{full_table_name}`\n")
+
+    def create_cursors_bq_table(self):
+        """
+        Creates an empty BigQuery table to store Plaid cursors. It retrieves Plaid access tokens
+        and associated item IDs, then adds an empty cursor as the next cursor value to start fresh.
+
+        Returns:
+            google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
+            data into the created BigQuery table.
+        """
+
+        # get BQ schema information
+        plaid_cursors_bq = self.bq_tables.plaid_cursors_YYYYMMDD()
+        partition_date = self.bq.get_partition_date(offset_days=0)
+        table_prefix = self.bq.replace_table_prefix(plaid_cursors_bq["table_id"])
+        table_id = table_prefix + "_" + partition_date
+
+        # create empty table to store account data
+        self.bq.create_empty_bq_table(
+            project_id=plaid_cursors_bq["project_id"],
+            dataset_id=plaid_cursors_bq["dataset_id"],
+            table_id=table_id,
+            table_description=plaid_cursors_bq["table_description"],
+            table_schema=plaid_cursors_bq["table_schema"],
+        )
+
+        # get plaid accounts. Stores access_token, item_id, and next cursor in df df
+        accounts_df = self.get_access_tokens()
+
+        # add empty cursor as next_cursor (fresh start)
+        accounts_df["next_cursor"] = ""
+
+        full_table_name = self.bq.get_latest_full_table_name(
+            plaid_cursors_bq["dataset_id"], plaid_cursors_bq["table_id"]
+        )
+
+        return self.bq_client.load_table_from_dataframe(accounts_df, full_table_name)
+
+    def add_cursor_to_bq(self, item_id, access_token, next_cursor, full_table_name):
+        """
+        Updates a Plaid access token / item with the latest Plaid cursor
+
+        Args:
+            item_id (str): The item originating from Plaid
+            access_token (str): The access_token associated with a Plaid item
+            next_cursor (str): The latest cursor from a Transactions Sync pull
+            full_table_name (str): The full destination table {project_id}.{dataset_id}.{table_id} to upload the cursor entry to
+
+        Returns:
+            status (Any): The status of the BQ upload
+        """
+
+        # create df storing an item_id, access_token, and next_cursor
         cursors_df = pd.DataFrame({"item_id": [item_id], "access_token": [access_token], "next_cursor": [next_cursor]})
 
-        table_ref = self.bq_client.dataset(dataset_id).table(table_id)
-
         # Load the DataFrame into the BigQuery table (commit data to storage immediately)
-        job = self.bq_client.load_table_from_dataframe(cursors_df, table_ref)
+        job = self.bq_client.load_table_from_dataframe(cursors_df, full_table_name)
 
         # Wait for job to complete
         status = job.result()
-        print(f"Cursors successfully added to `{table_ref}`")
+        print(f"Cursors successfully added to `{full_table_name}`")
+        return status
 
     def create_transactions_df(self, transactions, status_type):
+        """
+        Create a DataFrame containing transaction data.
+
+        Args:
+            transactions (dict): A dictionary containing transaction information.
+            status_type (str): The status type to be assigned to all transactions.
+
+        Returns:
+            pandas.DataFrame: A DataFrame containing transaction data with the following columns:
+        """
         account_ids = []
         account_owners = []
         amounts = []
