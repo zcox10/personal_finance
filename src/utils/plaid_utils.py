@@ -258,9 +258,12 @@ class PlaidUtils:
 
         # concat "{project_id}.{dataset_id}.{table_id}"
         full_table_name = self.bq.concat_table_name(
-            plaid_cursors_bq["project_id"], plaid_cursors_bq["dataset_id"], plaid_cursors_bq["table_id"]
+            plaid_cursors_bq["project_id"],
+            plaid_cursors_bq["dataset_id"],
+            self.bq.get_latest_table_partition(plaid_cursors_bq["dataset_id"], plaid_cursors_bq["table_id"]),
         )
 
+        # query to grab each access_token / item_id and their associated latest cursor
         cursors_query = f"""
         SELECT DISTINCT 
           access_token,
@@ -323,6 +326,14 @@ class PlaidUtils:
                     for r in transactions_json["removed"]:
                         removed_transactions.add(r["transaction_id"])
 
+                # add test transaction id
+                removed_transactions.add("test_transaction_id")
+
+            # create a final removed_df to store removed transactions
+            partition_date = self.bq.get_date(offset_days=0)
+            removed_df = self.create_removed_transactions_df(list(removed_transactions), partition_date)
+
+            # concat all transactions to main df
             transactions_df = pd.concat(transactions_df_list)
 
             # add next cursor back to next_cursor table
@@ -345,7 +356,7 @@ class PlaidUtils:
 
             print("SUCCESS: retrieved transacstions!")
 
-            return transactions_df, removed_transactions
+            return transactions_df, removed_df
 
         except ApiException as e:
             print("ERROR:", e)
@@ -380,7 +391,7 @@ class PlaidUtils:
 
         return self.bq.query(query)
 
-    def create_accounts_bq_table(self, access_tokens, plaid_country_codes):
+    def create_accounts_bq_table(self, access_tokens, plaid_country_codes, confirm):
         """
         Creates an empty BigQuery table to store Plaid account data. Uses the provided access tokens
         to fetch account information from the Plaid API and adds it to the BigQuery table.
@@ -388,6 +399,7 @@ class PlaidUtils:
         Args:
             access_tokens (list): A list of access tokens for accessing Plaid API and fetching account data.
             plaid_country_codes (list): A list of Plaid country codes to specify the country for which accounts are fetched.
+            confirm (bool): if table exists and confirm=True, confirm with Y/N if the pre-existing table should be deleted
 
         Returns:
             None
@@ -403,6 +415,7 @@ class PlaidUtils:
             table_id=plaid_accounts_bq["table_id"],
             table_description=plaid_accounts_bq["table_description"],
             table_schema=plaid_accounts_bq["table_schema"],
+            confirm=confirm,
         )
 
         # add access tokens to new empty accounts table
@@ -418,10 +431,13 @@ class PlaidUtils:
         )
         print(f"SUCCESS: all access tokens added to `{full_table_name}`\n")
 
-    def create_cursors_bq_table(self):
+    def create_cursors_bq_table(self, confirm):
         """
         Creates an empty BigQuery table to store Plaid cursors. It retrieves Plaid access tokens
         and associated item IDs, then adds an empty cursor as the next cursor value to start fresh.
+
+        Args:
+            confirm (bool): if table exists and confirm=True, confirm with Y/N if the pre-existing table should be deleted
 
         Returns:
             google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
@@ -441,6 +457,7 @@ class PlaidUtils:
             table_id=table_id,
             table_description=plaid_cursors_bq["table_description"],
             table_schema=plaid_cursors_bq["table_schema"],
+            confirm=confirm,
         )
 
         # get plaid accounts. Stores access_token, item_id, and next cursor in df df
@@ -480,6 +497,46 @@ class PlaidUtils:
         print(f"Cursors successfully added to `{full_table_name}`")
         return status
 
+    def create_temp_cursors_bq_table(self, confirm):
+        """
+        Creates an empty BigQuery table to store Plaid cursors temporarily. The latest cursor for each
+        access token / item will be stored in this table until the job is complete
+
+        Args:
+            confirm (bool): if table exists and confirm=True, confirm with Y/N if the pre-existing table should be deleted
+
+        Returns:
+            google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
+            data into the created BigQuery table.
+        """
+        temp_cursors_bq = self.bq_tables.temp_plaid_cursors()
+
+        # create new temp_cursors BQ table
+        self.bq.create_empty_bq_table(
+            project_id=temp_cursors_bq["project_id"],
+            dataset_id=temp_cursors_bq["dataset_id"],
+            table_id=temp_cursors_bq["table_id"],
+            table_description=temp_cursors_bq["table_description"],
+            table_schema=temp_cursors_bq["table_schema"],
+            confirm=confirm,
+        )
+
+    def create_removed_transactions_df(self, removed_transactions, date_removed):
+        """
+        Create a DataFrame containing removed transactions to filter out.
+
+        Args:
+            removed_transactions (list): A list of transaction_id to remove.
+            date_removed (str): The date the removed transactions were posted
+
+        Returns:
+            pandas.DataFrame: A DataFrame containing removed transaction_id's
+        """
+
+        removed_df = pd.DataFrame({"transaction_id": removed_transactions})
+        removed_df["date_removed"] = date_removed
+        return removed_df
+
     def create_transactions_df(self, transactions, status_type):
         """
         Create a DataFrame containing transaction data from get_transactions().
@@ -489,7 +546,7 @@ class PlaidUtils:
             status_type (str): The status type to be assigned to all transactions.
 
         Returns:
-            pandas.DataFrame: A DataFrame containing transaction data with the following columns:
+            pandas.DataFrame: A DataFrame containing transaction data
         """
         account_ids = []
         account_owners = []
@@ -606,7 +663,7 @@ class PlaidUtils:
                 "check_number": check_numbers,
                 "counterparties": counterparties,
                 "date": dates,
-                "datetimes": datetimes,
+                "datetime": datetimes,
                 "currency_code": currency_codes,
                 "address": addresses,
                 "city": cities,
