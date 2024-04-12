@@ -21,8 +21,22 @@ class BqUtils:
         """
         print(json.dumps(response, indent=2, sort_keys=True, default=str))
 
-    @staticmethod
-    def get_partition_date(offset_days=0):
+    def get_date(self, offset_days=0):
+        """
+        Get partition date according to current date (UTC). Use offset_days to add/subtract an offset.
+        e.g. if today is 2023-03-20, and offset_days is set to 0 -> "2023-03-20"
+        e.g. if today is 2023-03-20, and offset_days is set to -1 -> "2023-03-19"
+        e.g. if today is 2023-03-20, and offset_days is set to 1 -> "2023-03-21"
+
+        Args:
+            offset_days (int): The offset to be applied to a given partition date
+
+        Returns:
+            datetime.date: The partition date formatted as "YYYY-MM-DD"
+        """
+        return (dt.now(timezone.utc) + timedelta(days=offset_days)).date()
+
+    def get_partition_date(self, offset_days):
         """
         Get partition date according to current date (UTC). Use offset_days to add/subtract an offset.
         e.g. if today is 2023-03-20, and offset_days is set to 0 -> "20230320"
@@ -36,7 +50,7 @@ class BqUtils:
             str: The partition date formatted as "YYYYMMDD"
         """
 
-        date_utc = (dt.now(timezone.utc) + timedelta(days=offset_days)).date()
+        date_utc = self.get_date(offset_days)
 
         # Format the UTC date and time as a string if needed
         partition_date_string = date_utc.strftime("%Y%m%d")
@@ -111,7 +125,7 @@ class BqUtils:
             matching the provided prefix in the specified dataset.
         """
 
-        full_table_name = self.get_latest_full_table_name(self, dataset_id, table_id)
+        full_table_name = self.get_latest_full_table_name(dataset_id, table_id)
         table_id = full_table_name.split(".")[2]
         return table_id
 
@@ -143,38 +157,47 @@ class BqUtils:
             else:
                 raise  # Other exception occurred, propagate it
 
-    def delete_bq_table(self, project_id, dataset_id, table_id):
+    def delete_bq_table(self, project_id, dataset_id, table_id, confirm):
         """
         Deletes a BQ table
 
         Args:
             dataset_id (str): ID of the BQ dataset containing the tables.
-            table_id (str): ID of the BQ table to check
+            table_id (str): ID of the BQ table to check.
+            confirm (bool): T/F to confirm if the user should be prompted to deleted the table.
         """
 
         # concat "{project_id}.{dataset_id}.{table_id}"
         full_table_name = self.concat_table_name(project_id, dataset_id, table_id)
 
         try:
+            # Check if table exists. If does not exist, return
             if not self.does_bq_table_exist(project_id, dataset_id, table_id):
                 print(f"`{full_table_name}` does not exist!")
                 return
 
-            user_input = input(f"Are you sure you want to delete `{full_table_name}`? (Y/N): ").strip().upper()
-            print()
-            if user_input != "Y":
-                return
+            # confirm with Y/N if user should delete the table
+            elif confirm:
+                user_input = input(f"Are you sure you want to delete `{full_table_name}`? (Y/N): ").strip().upper()
+                print()
+                if user_input != "Y":
+                    return
+                else:
+                    # Delete the table
+                    self.bq_client.delete_table(full_table_name)
 
-            # Delete the table
-            self.bq_client.delete_table(full_table_name)
+            # if confirm != True, automatically delete the table without confirmation
+            else:
+                self.bq_client.delete_table(full_table_name)
 
             print(f"SUCCESS: `{full_table_name}` successfully deleted!")
+
         except NotFound:
             print(f"ERROR: The table, `{full_table_name}`, was not found.")
         except Exception as e:
             print("ERROR:", e)
 
-    def create_empty_bq_table(self, project_id, dataset_id, table_id, table_description, table_schema):
+    def create_empty_bq_table(self, project_id, dataset_id, table_id, table_description, table_schema, confirm):
         """
         Creates an empty BQ table based on the specified dataset_id, table_id, table_description, and table_schema
 
@@ -183,21 +206,15 @@ class BqUtils:
             table_id (str): ID of the BQ table to check.
             table_description (str): Description used to describe the table.
             table_schema (str): Schema used to format the table.
+            confirm (bool): if table exists and confirm=True, confirm with Y/N if the table should be deleted
 
         Returns:
             google.cloud.bigquery.table.Table: The created BigQuery table.
         """
 
-        # concat "{project_id}.{dataset_id}.{table_id}"
-        full_table_name = self.concat_table_name(project_id, dataset_id, table_id)
-
+        # determine if the table exists. If it does, delete it
         if self.does_bq_table_exist(project_id, dataset_id, table_id):
-            message = f"`{full_table_name}` already exists. Do you want to overwrite it? (Y/N): "
-            user_input = input(message).strip().upper()
-            if user_input != "Y":
-                return
-            else:
-                self.delete_bq_table(project_id, dataset_id, table_id)
+            self.delete_bq_table(project_id, dataset_id, table_id, confirm)
 
         # Define your BigQuery table
         table = bigquery.Table(f"{self.bq_client.project}.{dataset_id}.{table_id}", schema=table_schema)
@@ -205,6 +222,8 @@ class BqUtils:
 
         create_table = self.bq_client.create_table(table)
 
+        # concat "{project_id}.{dataset_id}.{table_id}"
+        full_table_name = self.concat_table_name(project_id, dataset_id, table_id)
         print(f"SUCCESS: `{full_table_name}` successfully created!")
 
         return create_table
@@ -224,7 +243,7 @@ class BqUtils:
         df = query_job.to_dataframe()
         return df
 
-    def create_table(self, query, destination_table):
+    def create_table(self, query, destination_table, write_disposition):
         """
         Execute a SQL query on a BigQuery table and write the result to a new BigQuery table.
 
@@ -232,11 +251,12 @@ class BqUtils:
             bq_client (google.cloud.bigquery.client.Client): BigQuery client instance.
             query (str): SQL query to execute.
             destination_table (str): Destination table to store the result: "{project_id}.{dataset_id}.{table_id}"
+            write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
             google.cloud.bigquery.job.LoadJob: The job object representing the asynchronous query job.
         """
-        job_config = bigquery.QueryJobConfig(destination=destination_table)
+        job_config = bigquery.QueryJobConfig(destination=destination_table, write_disposition=write_disposition)
 
         query_job = self.bq_client.query(query, job_config=job_config)
         return query_job

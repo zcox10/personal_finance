@@ -29,16 +29,51 @@ plaid_cursors_bq = bq_tables.plaid_cursors_YYYYMMDD()
 
 
 # RUN THIS SHIT
-plaid_client.create_accounts_bq_table(access_tokens=PLAID_ACCESS_TOKENS, plaid_country_codes=PLAID_COUNTRY_CODES)
-plaid_client.create_cursors_bq_table()
+# plaid_client.create_accounts_bq_table(
+#     access_tokens=PLAID_ACCESS_TOKENS, plaid_country_codes=PLAID_COUNTRY_CODES, confirm=False
+# )
+# plaid_client.create_cursors_bq_table(confirm=False)
+
+# create empty cursor table
+plaid_client.create_temp_cursors_bq_table(confirm=False)
+
+latest_cursors_df = plaid_client.get_latest_cursors()
+
+print(latest_cursors_df["access_token"][0])
+transactions_df, removed_df = plaid_client.get_transactions(
+    access_token=latest_cursors_df["access_token"][0],
+    item_id=latest_cursors_df["item_id"][0],
+    next_cursor=latest_cursors_df["next_cursor"][0],
+)
+
+print("transactions_df")
+print(transactions_df.dtypes)
+
+print()
+
+print("removed_df")
+print(removed_df.dtypes)
+
+print()
+print("AUTH:", transactions_df["authorized_date"].max())
+print("DATE:", transactions_df["date"].max())
+
+print()
+print("date >= date_removed")
+print(transactions_df[transactions_df["date"] >= removed_df["date_removed"].max()].head())
+
+print()
+print("date < date_removed")
+print(transactions_df[transactions_df["date"] < removed_df["date_removed"].max()].head())
+
+# date_ = bq.get_date(offset_days=0)
+# print(date_)
+# print(type(date_))
 
 
-# TODO: add crypto account here
-# crypto code here
-
-# get transactions
-# account_cursors_table = bq.get_latest_table_partition(dataset_id="personal_finance", table_prefix="account_cursors_")
-
-# cursors = plaid_client.get_latest_cursors()
-# next_cursor = cursors[access_token]
-# get_transactions(self, access_token, next_cursor):
+# for i, row in latest_cursors_df.iterrows():
+#     transactions_df, removed_transactions = plaid_client.get_transactions(
+#         access_token=row["access_token"],
+#         item_id=row["item_id"],
+#         next_cursor=row["next_cursor"],
+#     )
