@@ -553,8 +553,8 @@ class PlaidUtils:
         amounts = []
         authorized_dates = []
         authorized_datetimes = []
-        categories = []
-        category_ids = []
+        # categories = [] # deprecated for personal_finance_category
+        # category_ids = [] # deprecated for personal_finance_category
         check_numbers = []
         counterparties = []
         dates = []
@@ -587,7 +587,7 @@ class PlaidUtils:
         personal_finance_category_primaries = []
         transaction_codes = []
         transaction_ids = []
-        transaction_types = []
+        # transaction_types = [] # deprecated for payment_channel
         unofficial_currency_codes = []
         websites = []
         statuses = []
@@ -598,8 +598,8 @@ class PlaidUtils:
             amounts.append(t["amount"])
             authorized_dates.append(t["authorized_date"])
             authorized_datetimes.append(t["authorized_datetime"])
-            categories.append(t["category"])
-            category_ids.append(t["category_id"])
+            # categories.append(t["category"]) # deprecated
+            # category_ids.append(t["category_id"]) # deprecated
             check_numbers.append(t["check_number"])
             counterparties.append(t["counterparties"])
             dates.append(t["date"])
@@ -642,12 +642,29 @@ class PlaidUtils:
 
             transaction_codes.append(t["transaction_code"])
             transaction_ids.append(t["transaction_id"])
-            transaction_types.append(t["transaction_type"])
+            # transaction_types.append(t["transaction_type"])
             unofficial_currency_codes.append(t["unofficial_currency_code"])
             websites.append(t["website"])
 
             # transaction type
             statuses.append(status_type)
+
+        # format counterparties array: create a list to store the formatted counterparties
+        formatted_counterparties = []
+        for counterparties_list in counterparties:
+            formatted_counterparties_list = []
+            for counterparty in counterparties_list:
+                formatted_counterparties_list.append(
+                    {
+                        "name": counterparty["name"],
+                        "type": counterparty["type"],
+                        "logo_url": counterparty["logo_url"],
+                        "website": counterparty["website"],
+                        "entity_id": counterparty["entity_id"],
+                        "confidence_level": counterparty["confidence_level"],
+                    }
+                )
+            formatted_counterparties.append(formatted_counterparties_list)
 
         # add account data to accounts_df
         transactions_df = pd.DataFrame(
@@ -658,42 +675,153 @@ class PlaidUtils:
                 "amount": amounts,
                 "authorized_date": authorized_dates,
                 "authorized_datetime": authorized_datetimes,
-                "category": categories,
-                "category_id": category_ids,
+                # "category": categories, # deprecated
+                # "category_id": category_ids, # deprecated
                 "check_number": check_numbers,
-                "counterparties": counterparties,
+                "counterparties": formatted_counterparties,  # counterparties array with name, type, logo_url, website, entity_id, and confidence_level fields
                 "date": dates,
                 "datetime": datetimes,
                 "currency_code": currency_codes,
-                "address": addresses,
-                "city": cities,
-                "region": regions,
-                "postal_code": postal_codes,
-                "latitude": latitudes,
-                "longitude": longitudes,
-                "merchant_entity_id": merchant_entity_ids,
-                "merchant_name": merchant_names,
-                "name": names,
+                "location": [  # location struct with address, city, region, postal_code, latitude, and longitude fields
+                    {
+                        "address": address,
+                        "city": city,
+                        "region": region,
+                        "postal_code": postal_code,
+                        "latitude": latitude,
+                        "longitude": longitude,
+                    }
+                    for address, city, region, postal_code, latitude, longitude in zip(
+                        addresses, cities, regions, postal_codes, latitudes, longitudes
+                    )
+                ],
+                "merchant": [  # merchant struct with entity_id, merchant_name, and name fields
+                    {
+                        "entity_id": entity_id,
+                        "merchant_name": merchant_name,
+                        "name": name,
+                    }
+                    for entity_id, merchant_name, name in zip(merchant_entity_ids, merchant_names, names)
+                ],
                 "payment_channel": payment_channels,
-                "reference_number": reference_numbers,
-                "ppd_id": ppd_ids,
-                "payee": payees,
-                "by_order_of": by_order_ofs,
-                "payer": payers,
-                "payment_method": payment_methods,
-                "payment_processor": payment_processors,
-                "reason": reasons,
+                "payment_meta": [  # payment_meta struct with reference_number, ppd_id, payee, by_order_of, payer, payment_method, payment_processor, and reason fields
+                    {
+                        "reference_number": reference_number,
+                        "ppd_id": ppd_id,
+                        "payee": payee,
+                        "by_order_of": by_order_of,
+                        "payer": payer,
+                        "payment_method": payment_method,
+                        "payment_processor": payment_processor,
+                        "reason": reason,
+                    }
+                    for reference_number, ppd_id, payee, by_order_of, payer, payment_method, payment_processor, reason in zip(
+                        reference_numbers,
+                        ppd_ids,
+                        payees,
+                        by_order_ofs,
+                        payers,
+                        payment_methods,
+                        payment_processors,
+                        reasons,
+                    )
+                ],
                 "pending": pendings,
                 "pending_transaction_id": pending_transaction_ids,
-                "personal_finance_category_confidence_level": personal_finance_category_confidence_levels,
-                "personal_finance_category_detailed": personal_finance_category_detailed,
-                "personal_finance_category_primary": personal_finance_category_primaries,
+                "personal_finance_category": [  # personal_finance_category struct with confidence_level, primary, and detailed fields
+                    {
+                        "primary": primary,
+                        "detailed": detailed,
+                        "confidence_level": confidence_level,
+                    }
+                    for primary, detailed, confidence_level in zip(
+                        personal_finance_category_primaries,
+                        personal_finance_category_detailed,
+                        personal_finance_category_confidence_levels,
+                    )
+                ],
                 "transaction_code": transaction_codes,
                 "transaction_id": transaction_ids,
-                "transaction_type": transaction_types,
+                # "transaction_type": transaction_types, # deprecated
                 "unofficial_currency_code": unofficial_currency_codes,
                 "website": websites,
             }
         )
 
         return transactions_df
+
+    def create_empty_transactions_bq_table(self, confirm):
+        # get BQ schema information
+        plaid_transactions_bq = self.bq_tables.plaid_transactions_YYYYMMDD()
+        partition_date = self.bq.get_partition_date(offset_days=0)
+        table_prefix = self.bq.replace_table_prefix(plaid_transactions_bq["table_id"])
+        table_id = table_prefix + "_" + partition_date
+
+        # create empty table to store account data
+        self.bq.create_empty_bq_table(
+            project_id=plaid_transactions_bq["project_id"],
+            dataset_id=plaid_transactions_bq["dataset_id"],
+            table_id=table_id,
+            table_description=plaid_transactions_bq["table_description"],
+            table_schema=plaid_transactions_bq["table_schema"],
+            confirm=confirm,
+        )
+
+    def create_empty_removed_bq_table(self, confirm):
+        # get BQ schema information
+        plaid_removed_bq = self.bq_tables.plaid_removed_transactions_YYYYMMDD()
+        partition_date = self.bq.get_partition_date(offset_days=0)
+        table_prefix = self.bq.replace_table_prefix(plaid_removed_bq["table_id"])
+        table_id = table_prefix + "_" + partition_date
+
+        # create empty table to store account data
+        self.bq.create_empty_bq_table(
+            project_id=plaid_removed_bq["project_id"],
+            dataset_id=plaid_removed_bq["dataset_id"],
+            table_id=table_id,
+            table_description=plaid_removed_bq["table_description"],
+            table_schema=plaid_removed_bq["table_schema"],
+            confirm=confirm,
+        )
+
+    def upload_transactions_df_to_bq(self, transactions_df):
+        """
+        Upload the transactions_df to a pre-existing plaid_transactions_YYYYMMDD BQ table
+
+        Args:
+            transactions_df (pandas.DataFrame): the dataframe containing all plaid transactions
+
+        Returns:
+            google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
+            data into the created BigQuery table.
+        """
+
+        # get BQ schema information
+        plaid_transactions_bq = self.bq_tables.plaid_transactions_YYYYMMDD()
+
+        full_table_name = self.bq.get_latest_full_table_name(
+            plaid_transactions_bq["dataset_id"], plaid_transactions_bq["table_id"]
+        )
+
+        return self.bq_client.load_table_from_dataframe(transactions_df, full_table_name)
+
+    def upload_removed_df_to_bq(self, removed_df):
+        """
+        Upload the removed_df to a pre-existing plaid_removed_transactions_YYYYMMDD BQ table
+
+        Args:
+            removed_df (pandas.DataFrame): the dataframe containing all plaid removed transactions
+
+        Returns:
+            google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
+            data into the created BigQuery table.
+        """
+
+        # get BQ schema information
+        plaid_removed_bq = self.bq_tables.plaid_removed_transactions_YYYYMMDD()
+
+        full_table_name = self.bq.get_latest_full_table_name(
+            plaid_removed_bq["dataset_id"], plaid_removed_bq["table_id"]
+        )
+
+        return self.bq_client.load_table_from_dataframe(removed_df, full_table_name)

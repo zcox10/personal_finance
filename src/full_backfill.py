@@ -29,51 +29,29 @@ plaid_cursors_bq = bq_tables.plaid_cursors_YYYYMMDD()
 
 
 # RUN THIS SHIT
-# plaid_client.create_accounts_bq_table(
-#     access_tokens=PLAID_ACCESS_TOKENS, plaid_country_codes=PLAID_COUNTRY_CODES, confirm=False
-# )
-# plaid_client.create_cursors_bq_table(confirm=False)
+plaid_client.create_accounts_bq_table(
+    access_tokens=PLAID_ACCESS_TOKENS, plaid_country_codes=PLAID_COUNTRY_CODES, confirm=False
+)
+plaid_client.create_cursors_bq_table(confirm=False)
 
 # create empty cursor table
 plaid_client.create_temp_cursors_bq_table(confirm=False)
 
+# create empty transactions table
+plaid_client.create_empty_transactions_bq_table(confirm=False)
+plaid_client.create_empty_removed_bq_table(confirm=False)
+
+# grab latest cursors for each access token / item
 latest_cursors_df = plaid_client.get_latest_cursors()
 
-print(latest_cursors_df["access_token"][0])
+# Run get_transactions() to store added/modified transactions in transactions_df and removed transactions in removed_df
+# print(latest_cursors_df["access_token"][0])
 transactions_df, removed_df = plaid_client.get_transactions(
     access_token=latest_cursors_df["access_token"][0],
     item_id=latest_cursors_df["item_id"][0],
     next_cursor=latest_cursors_df["next_cursor"][0],
 )
 
-print("transactions_df")
-print(transactions_df.dtypes)
-
-print()
-
-print("removed_df")
-print(removed_df.dtypes)
-
-print()
-print("AUTH:", transactions_df["authorized_date"].max())
-print("DATE:", transactions_df["date"].max())
-
-print()
-print("date >= date_removed")
-print(transactions_df[transactions_df["date"] >= removed_df["date_removed"].max()].head())
-
-print()
-print("date < date_removed")
-print(transactions_df[transactions_df["date"] < removed_df["date_removed"].max()].head())
-
-# date_ = bq.get_date(offset_days=0)
-# print(date_)
-# print(type(date_))
-
-
-# for i, row in latest_cursors_df.iterrows():
-#     transactions_df, removed_transactions = plaid_client.get_transactions(
-#         access_token=row["access_token"],
-#         item_id=row["item_id"],
-#         next_cursor=row["next_cursor"],
-#     )
+# upload transactions and removed transactions to associated BQ tables
+plaid_client.upload_transactions_df_to_bq(transactions_df)
+plaid_client.upload_removed_df_to_bq(removed_df)

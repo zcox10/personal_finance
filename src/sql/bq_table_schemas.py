@@ -196,31 +196,19 @@ class BqTableSchemas:
             },
             {
                 "name": "amount",
-                "type": "STRING",
+                "type": "FLOAT64",
                 "mode": "NULLABLE",
                 "description": "",
             },
             {
                 "name": "authorized_date",
-                "type": "STRING",
+                "type": "DATE",
                 "mode": "NULLABLE",
                 "description": "",
             },
             {
                 "name": "authorized_datetime",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "category",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "category_id",
-                "type": "STRING",
+                "type": "DATETIME",
                 "mode": "NULLABLE",
                 "description": "",
             },
@@ -232,19 +220,56 @@ class BqTableSchemas:
             },
             {
                 "name": "counterparties",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
+                "type": "STRUCT",
+                "mode": "REPEATED",
+                "fields": [
+                    {
+                        "name": "name",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "type",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "logo_url",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "website",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "entity_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "confidence_level",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                ],
             },
             {
                 "name": "date",
-                "type": "STRING",
+                "type": "DATE",
                 "mode": "NULLABLE",
                 "description": "",
             },
             {
                 "name": "datetime",
-                "type": "STRING",
+                "type": "DATETIME",
                 "mode": "NULLABLE",
                 "description": "",
             },
@@ -255,58 +280,72 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "address",
-                "type": "STRING",
+                "name": "location",
+                "type": "STRUCT",
                 "mode": "NULLABLE",
-                "description": "",
+                "fields": [
+                    {
+                        "name": "address",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "city",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "region",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "postal_code",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "latitude",
+                        "type": "FLOAT64",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "longitude",
+                        "type": "FLOAT64",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                ],
             },
             {
-                "name": "city",
-                "type": "STRING",
+                "name": "merchant",
+                "type": "STRUCT",
                 "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "region",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "postal_code",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "latitude",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "longitude",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "merchant_entity_id",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "merchant_name",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "name",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
+                "fields": [
+                    {
+                        "name": "entity_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "merchant_name",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "name",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                ],
             },
             {
                 "name": "payment_channel",
@@ -315,56 +354,63 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "reference_number",
-                "type": "STRING",
+                "name": "payment_meta",
+                "type": "STRUCT",
                 "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "ppd_id",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "payee",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "by_order_of",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "payer",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "payment_method",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "payment_processor",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "reason",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
+                "fields": [
+                    {
+                        "name": "reference_number",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "ppd_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "payee",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "by_order_of",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "payer",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "payment_method",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "payment_processor",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "reason",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                ],
             },
             {
                 "name": "pending",
-                "type": "STRING",
+                "type": "BOOL",
                 "mode": "NULLABLE",
                 "description": "",
             },
@@ -375,22 +421,29 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "personal_finance_category_confidence_level",
-                "type": "STRING",
+                "name": "personal_finance_category",
+                "type": "STRUCT",
                 "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "personal_finance_category_detailed",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "personal_finance_category_primary",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
+                "fields": [
+                    {
+                        "name": "primary",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "detailed",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "confidence_level",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                ],
             },
             {
                 "name": "transaction_code",
@@ -405,12 +458,6 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "transaction_type",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
                 "name": "unofficial_currency_code",
                 "type": "STRING",
                 "mode": "NULLABLE",
@@ -419,6 +466,36 @@ class BqTableSchemas:
             {
                 "name": "website",
                 "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+        ]
+
+        schema = {
+            "project_id": project_id,
+            "dataset_id": dataset_id,
+            "table_id": table_id,
+            "table_description": table_description,
+            "table_schema": table_schema,
+        }
+
+        return schema
+
+    def plaid_removed_transactions_YYYYMMDD(self):
+        project_id = "zsc-personal"
+        dataset_id = "personal_finance"
+        table_id = "plaid_removed_transactions_YYYYMMDD"
+        table_description = "Stores Plaid removed transactions, partitioned daily"
+        table_schema = [
+            {
+                "name": "transaction_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "date_removed",
+                "type": "DATE",
                 "mode": "NULLABLE",
                 "description": "",
             },
