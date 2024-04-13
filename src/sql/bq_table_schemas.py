@@ -177,8 +177,32 @@ class BqTableSchemas:
         table_description = "Stores Plaid transactions, partitioned daily"
         table_schema = [
             {
+                "name": "item_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
                 "name": "account_id",
                 "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "transaction_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "pending_transaction_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "is_pending",
+                "type": "BOOL",
                 "mode": "NULLABLE",
                 "description": "",
             },
@@ -195,8 +219,14 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "amount",
-                "type": "FLOAT64",
+                "name": "date",
+                "type": "DATE",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "datetime",
+                "type": "DATETIME",
                 "mode": "NULLABLE",
                 "description": "",
             },
@@ -213,16 +243,96 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "check_number",
+                "name": "amount",
+                "type": "FLOAT64",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "currency_code",
                 "type": "STRING",
                 "mode": "NULLABLE",
                 "description": "",
+            },
+            {
+                "name": "unofficial_currency_code",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "personal_finance_category",
+                "type": "STRUCT",
+                "mode": "NULLABLE",
+                "fields": [
+                    {
+                        "name": "primary",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "detailed",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "confidence_level",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                ],
+            },
+            {
+                "name": "payment_channel",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "merchant",
+                "type": "STRUCT",
+                "mode": "NULLABLE",
+                "fields": [
+                    {
+                        "name": "entity_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "merchant_name",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "name",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "website",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                ],
             },
             {
                 "name": "counterparties",
                 "type": "STRUCT",
                 "mode": "REPEATED",
                 "fields": [
+                    {
+                        "name": "entity_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
                     {
                         "name": "name",
                         "type": "STRING",
@@ -231,6 +341,12 @@ class BqTableSchemas:
                     },
                     {
                         "name": "type",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "confidence_level",
                         "type": "STRING",
                         "mode": "NULLABLE",
                         "description": "",
@@ -247,37 +363,7 @@ class BqTableSchemas:
                         "mode": "NULLABLE",
                         "description": "",
                     },
-                    {
-                        "name": "entity_id",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                        "description": "",
-                    },
-                    {
-                        "name": "confidence_level",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                        "description": "",
-                    },
                 ],
-            },
-            {
-                "name": "date",
-                "type": "DATE",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "datetime",
-                "type": "DATETIME",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "currency_code",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
             },
             {
                 "name": "location",
@@ -323,32 +409,7 @@ class BqTableSchemas:
                 ],
             },
             {
-                "name": "merchant",
-                "type": "STRUCT",
-                "mode": "NULLABLE",
-                "fields": [
-                    {
-                        "name": "entity_id",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                        "description": "",
-                    },
-                    {
-                        "name": "merchant_name",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                        "description": "",
-                    },
-                    {
-                        "name": "name",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                        "description": "",
-                    },
-                ],
-            },
-            {
-                "name": "payment_channel",
+                "name": "check_number",
                 "type": "STRING",
                 "mode": "NULLABLE",
                 "description": "",
@@ -371,13 +432,13 @@ class BqTableSchemas:
                         "description": "",
                     },
                     {
-                        "name": "payee",
+                        "name": "by_order_of",
                         "type": "STRING",
                         "mode": "NULLABLE",
                         "description": "",
                     },
                     {
-                        "name": "by_order_of",
+                        "name": "payee",
                         "type": "STRING",
                         "mode": "NULLABLE",
                         "description": "",
@@ -409,62 +470,7 @@ class BqTableSchemas:
                 ],
             },
             {
-                "name": "pending",
-                "type": "BOOL",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "pending_transaction_id",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "personal_finance_category",
-                "type": "STRUCT",
-                "mode": "NULLABLE",
-                "fields": [
-                    {
-                        "name": "primary",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                        "description": "",
-                    },
-                    {
-                        "name": "detailed",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                        "description": "",
-                    },
-                    {
-                        "name": "confidence_level",
-                        "type": "STRING",
-                        "mode": "NULLABLE",
-                        "description": "",
-                    },
-                ],
-            },
-            {
                 "name": "transaction_code",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "transaction_id",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "unofficial_currency_code",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "website",
                 "type": "STRING",
                 "mode": "NULLABLE",
                 "description": "",
@@ -487,6 +493,18 @@ class BqTableSchemas:
         table_id = "plaid_removed_transactions_YYYYMMDD"
         table_description = "Stores Plaid removed transactions, partitioned daily"
         table_schema = [
+            {
+                "name": "item_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "account_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
             {
                 "name": "transaction_id",
                 "type": "STRING",

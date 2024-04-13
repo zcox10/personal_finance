@@ -5,6 +5,13 @@ from google.api_core.exceptions import NotFound
 
 
 class BqUtils:
+    partition_formats = {
+        "YYYYMMDD": "days",
+        "YYYYMM": "months",
+        "YYYYMMDDHH": "hours",
+        "YYYYMMDDTHH": "hours",
+    }
+
     def __init__(self, bq_client):
         self.bq_client = bq_client
 
@@ -65,22 +72,57 @@ class BqUtils:
         """
         return self.bq_client
 
-    def replace_table_prefix(self, table_id):
+    def partition_format(self, table_id):
         """
-        If table_id ends with "_YYYYMMDD", replace with just table_prefix; else table_prefix = table_id
+        Type of the partition, if any. e.g. YYYYMMDD
+
+        Args:
+            table_id (str): Table id used to determine partition_format
+
+        Returns:
+            str: The partition format if exists, else None
+        """
+        for key in self.partition_formats:
+            if table_id[-len(key) :] == key:
+                return key
+        return None
+
+    def replace_table_suffix(self, table_id):
+        """
+        If table_id ends with any format in partition_formst, replace with just table_prefix; else table_prefix = table_id
 
         Args:
             table_id (str): Table id used to replace table_prefix
 
         Returns:
-            str: Table prefix or table_id depending on if table is entered with "_YYYYMMDD" suffix or not.
+            str: Table prefix or table_id depending on if table is entered with a partition_format suffix or not.
         """
 
-        if table_id.endswith("_YYYYMMDD"):
-            table_prefix = table_id[: -len("_YYYYMMDD")]
+        partition_format = self.partition_format(table_id)
+        if partition_format:
+            return table_id[: -len(partition_format)]
         else:
-            table_prefix = table_id
-        return table_prefix
+            return table_id
+
+    def get_table_partitions(self, project_id, dataset_id, table_id):
+        # get table prefix by replacing partition_format e.g. YYYYMMDD, YYYYMM, YYYYMMDDHH
+        table_prefix = self.replace_table_suffix(table_id)
+
+        # query to get all partitions pertaining to a given format
+        query = f"""
+        SELECT table_id
+        FROM `{project_id}.{dataset_id}.__TABLES__`
+        WHERE 
+          RTRIM(
+            table_id,
+            SPLIT(table_id, "_")[ORDINAL(ARRAY_LENGTH(SPLIT(table_id, "_")))]
+            ) = "{table_prefix}"
+        ORDER BY table_id
+        """
+
+        df = self.query(query)
+
+        return [t for t in df["table_id"]]
 
     def get_latest_full_table_name(self, dataset_id, table_id):
         """
@@ -94,7 +136,7 @@ class BqUtils:
             str: Full table ID of the latest partition.
         """
 
-        table_prefix = self.replace_table_prefix(table_id)
+        table_prefix = self.replace_table_suffix(table_id)
 
         # Get all tables matching the prefix
         tables = self.bq_client.list_tables(self.bq_client.dataset(dataset_id))
@@ -157,6 +199,90 @@ class BqUtils:
             else:
                 raise  # Other exception occurred, propagate it
 
+    def copy_bq_table(self, source_table, destination_table, write_disposition):
+        """
+        Copies data from a source BigQuery table to a destination BigQuery table.
+
+        Args:
+        - source_table (str): The fully qualified name (project.dataset.table) of the source table.
+        - destination_table (str): The fully qualified name (project.dataset.table) of the destination table.
+        - write_disposition (str): The write disposition for the copy job. Possible values are "WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY".
+
+        Returns:
+        - None: This function does not return anything. Prints a success message upon completion.
+        """
+
+        # Job configuration to copy the table
+        job_config = bigquery.CopyJobConfig(write_disposition=write_disposition)
+
+        # Start, then wait for job to complete
+        job = self.bq_client.copy_table(source_table, destination_table, job_config=job_config)
+        job.result()
+
+        print(f"SUCCESS: `{source_table}` copied to `{destination_table}`\n")
+
+    def delete_all_partitions(self, project_id, dataset_id, table_id, confirm):
+        """
+        Delete all partitions that follow a partition_format e.g. "YYYYMM", "YYYYMMDD", "YYYYMMDDHH", or "YYYYMMDDTHH"
+
+        Args:
+            project_id (str): ID of the BQ project containing the tables
+            dataset_id (str): ID of the BQ dataset containing the tables.
+            table_id (str): ID of the BQ table to check, can include a partition_format suffix e.g. "{table_name}_YYYYMMDD"
+            confirm (bool): if tables exists and confirm=True, confirm with Y/N if the table should be deleted
+        """
+
+        # get all table_id's that match the table prefix
+        table_ids = self.get_table_partitions(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+        )
+
+        if len(table_ids) == 0:  # if no tables exist, print FAILED statement
+            print(f"FAILED: no tables match the {table_id} pattern")
+
+        elif confirm:  # confirm whether to delete all tables or not, else delete all tables
+            tables_to_delete = len(table_ids)
+            self.user_prompt(
+                prompt=f"Are you sure you want to delete {tables_to_delete} table(s): `{project_id}.{dataset_id}.{table_id}`?",
+                action=lambda: self.delete_list_of_tables(project_id, dataset_id, table_ids, confirm=False),
+                non_action_response=f"did not delete `{project_id}.{dataset_id}.{table_id}` table(s)",
+            )
+        else:  # delete the tables without confirmation
+            self.delete_list_of_tables(project_id, dataset_id, table_ids, confirm=False)
+
+    def delete_list_of_tables(self, project_id, dataset_id, table_ids, confirm):
+        """
+        Delete all a list of tables provided
+
+        Args:
+            project_id (str): ID of the BQ project containing the tables
+            dataset_id (str): ID of the BQ dataset containing the tables.
+            table_ids (list): A list of table_id's to delete
+            confirm (bool): if tables exists and confirm=True, confirm with Y/N if the table should be deleted. This will ask for confirmation to delete every table.
+        """
+        for _table in table_ids:
+            self.delete_bq_table(project_id, dataset_id, _table, confirm)
+
+    def user_prompt(self, prompt, action, non_action_response):
+        """
+        Prompts a user for a Y/N response. "Y" to continue and execute the action
+
+        Args:
+            prompt (str): A text message prompting the user for a given action e.g. "Do you want to continue?"
+            action (str): ID of the BQ table to check.
+
+        Returns:
+            If user does not respond with "Y", returns nothing; else, executes the action
+        """
+        user_input = input(f"{prompt} (Y/N): ").strip().upper()
+        print()
+        if user_input == "Y":
+            return action()
+        else:
+            print("REJECTED USER INPUT:", non_action_response)
+
     def delete_bq_table(self, project_id, dataset_id, table_id, confirm):
         """
         Deletes a BQ table
@@ -178,19 +304,19 @@ class BqUtils:
 
             # confirm with Y/N if user should delete the table
             elif confirm:
-                user_input = input(f"Are you sure you want to delete `{full_table_name}`? (Y/N): ").strip().upper()
-                print()
-                if user_input != "Y":
-                    return
-                else:
-                    # Delete the table
-                    self.bq_client.delete_table(full_table_name)
+                self.user_prompt(
+                    prompt=f"Are you sure you want to delete `{full_table_name}`?",
+                    action=lambda: self.bq_client.delete_table(full_table_name),
+                    non_action_response=f"did not delete `{full_table_name}`",
+                )
 
             # if confirm != True, automatically delete the table without confirmation
             else:
                 self.bq_client.delete_table(full_table_name)
 
-            print(f"SUCCESS: `{full_table_name}` successfully deleted!")
+            # ensure the table is deleted
+            if not self.does_bq_table_exist(project_id, dataset_id, table_id):
+                print(f"SUCCESS: `{full_table_name}` successfully deleted!")
 
         except NotFound:
             print(f"ERROR: The table, `{full_table_name}`, was not found.")
@@ -224,7 +350,7 @@ class BqUtils:
 
         # concat "{project_id}.{dataset_id}.{table_id}"
         full_table_name = self.concat_table_name(project_id, dataset_id, table_id)
-        print(f"SUCCESS: `{full_table_name}` successfully created!")
+        print(f"SUCCESS: `{full_table_name}` successfully created!\n")
 
         return create_table
 

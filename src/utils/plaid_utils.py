@@ -212,10 +212,12 @@ class PlaidUtils:
                 print("persistsent_account_id(s) already present in the data:")
                 for i in duplicate_persistent_account_ids:
                     print(f"- {i}")
-                user_input = input("\nDo you want to continue? (Y/N): ").strip().upper()
-                print()
-                if user_input != "Y":
-                    return
+
+                self.bq.user_prompt(
+                    prompt="\nDo you want to continue?",
+                    action=lambda: print("CONTINUE: adding persistent_account_id(s) that are already present"),
+                    non_action_response="did not add persistent_account_id(s)",
+                )
 
             get_account_ids = [i for i in get_accts_df["account_id"].unique() if i is not None]
             duplicate_account_ids = [i for i in account_ids if i in get_account_ids]
@@ -223,10 +225,11 @@ class PlaidUtils:
                 print("account_id(s) already present in the data:")
                 for i in duplicate_account_ids:
                     print(f"- {i}")
-                user_input = input("\nDo you want to continue? (Y/N): ").strip().upper()
-                print()
-                if user_input != "Y":
-                    return
+                self.bq.user_prompt(
+                    prompt="\nDo you want to continue?",
+                    action=lambda: print("CONTINUE: adding account_id(s) that are already present"),
+                    non_action_response="did not add account_id(s)",
+                )
         except NotFound:
             print(f"The table, `{full_table_name}`, was not found.")
             return
@@ -275,7 +278,7 @@ class PlaidUtils:
         cursors_df = self.bq.query(cursors_query)
         return cursors_df
 
-    def get_transactions(self, access_token, item_id, next_cursor):
+    def get_transactions(self, access_token, item_id, next_cursor, offset_days):
         """
         Retrieves transactions and handles pagination.
 
@@ -285,6 +288,7 @@ class PlaidUtils:
             access_token (str): Access token for Plaid API.
             item_id (str): ID of the item associated with the transactions.
             next_cursor (str): Cursor for fetching the next set of transactions.
+            offset_days (int): The number of days to offset for the date_removed field
 
         Returns:
             tuple: A tuple containing:
@@ -296,70 +300,73 @@ class PlaidUtils:
         """
 
         # get transactions
-        try:
-            has_more = True
-            removed_transactions = set()
-            transactions_df_list = []
+        # try:
+        has_more = True
+        removed_transactions = []
+        removed_accounts = []
+        transactions_df_list = []
 
-            while has_more:
-                # Fetch transactions for the account
-                request = TransactionsSyncRequest(access_token=access_token, cursor=next_cursor, count=500)
+        while has_more:
+            # Fetch transactions for the account
+            request = TransactionsSyncRequest(access_token=access_token, cursor=next_cursor, count=500)
 
-                response = self.plaid_client.transactions_sync(request)
-                has_more = response["has_more"]
-                next_cursor = response["next_cursor"]
+            response = self.plaid_client.transactions_sync(request)
+            has_more = response["has_more"]
+            next_cursor = response["next_cursor"]
 
-                transactions_json = response.to_dict()
+            transactions_json = response.to_dict()
 
-                # self.bq.pretty_print_response(transactions_json)
+            # self.bq.pretty_print_response(transactions_json)
 
-                if len(transactions_json["added"]) > 0:
-                    added_df = self.create_transactions_df(transactions_json["added"], "ADDED")
-                    transactions_df_list.append(added_df)
+            if len(transactions_json["added"]) > 0:
+                added_df = self.create_transactions_df(transactions_json["added"], item_id, "ADDED")
+                transactions_df_list.append(added_df)
 
-                if len(transactions_json["modified"]) > 0:
-                    modified_df = self.create_transactions_df(transactions_json["modified"], "MODIFIED")
-                    transactions_df_list.append(modified_df)
+            if len(transactions_json["modified"]) > 0:
+                modified_df = self.create_transactions_df(transactions_json["modified"], item_id, "MODIFIED")
+                transactions_df_list.append(modified_df)
 
-                # add all removed transactions to removed_transactions list
-                if len(transactions_json["removed"]) > 0:
-                    for r in transactions_json["removed"]:
-                        removed_transactions.add(r["transaction_id"])
+            # add all removed transactions to removed_transactions list
+            if len(transactions_json["removed"]) > 0:
+                for r in transactions_json["removed"]:
+                    removed_accounts.append(r["account_id"])
+                    removed_transactions.append(r["transaction_id"])
 
-                # add test transaction id
-                removed_transactions.add("test_transaction_id")
+            # add test transaction id
+            removed_transactions.append("test_transaction_id")
+            removed_accounts.append("test_account_id")
 
-            # create a final removed_df to store removed transactions
-            partition_date = self.bq.get_date(offset_days=0)
-            removed_df = self.create_removed_transactions_df(list(removed_transactions), partition_date)
+        # create a final removed_df to store removed transactions
+        partition_date = self.bq.get_date(offset_days=offset_days)
+        removed_df = self.create_removed_df(item_id, removed_transactions, removed_accounts, partition_date)
 
-            # concat all transactions to main df
-            transactions_df = pd.concat(transactions_df_list)
+        # concat all transactions to main df
+        transactions_df = pd.concat(transactions_df_list)
 
-            # add next cursor back to next_cursor table
-            temp_plaid_cursors_bq = self.bq_tables.temp_plaid_cursors()
+        # add next cursor back to next_cursor table
+        temp_plaid_cursors_bq = self.bq_tables.temp_plaid_cursors()
 
-            # concat "{project_id}.{dataset_id}.{table_id}"
-            temp_cursors_table_name = self.bq.concat_table_name(
-                temp_plaid_cursors_bq["project_id"],
-                temp_plaid_cursors_bq["dataset_id"],
-                temp_plaid_cursors_bq["table_id"],
-            )
+        # concat "{project_id}.{dataset_id}.{table_id}"
+        temp_cursors_table_name = self.bq.concat_table_name(
+            temp_plaid_cursors_bq["project_id"],
+            temp_plaid_cursors_bq["dataset_id"],
+            temp_plaid_cursors_bq["table_id"],
+        )
 
-            # add cursor to temp_cursors table
-            self.add_cursor_to_bq(
-                item_id=item_id,
-                access_token=access_token,
-                next_cursor=next_cursor,
-                full_table_name=temp_cursors_table_name,
-            )
+        # add cursor to temp_cursors table
+        self.add_cursor_to_bq(
+            item_id=item_id,
+            access_token=access_token,
+            next_cursor=next_cursor,
+            full_table_name=temp_cursors_table_name,
+        )
 
-            print("SUCCESS: retrieved transacstions!")
+        print(f"SUCCESS: retrieved transacstions for item_id: {item_id}")
 
-            return transactions_df, removed_df
+        return transactions_df, removed_df
 
-        except ApiException as e:
-            print("ERROR:", e)
+        # except ApiException as e:
+        #     print("ERROR:", e)
 
     def get_access_tokens(self):
         """
@@ -431,13 +438,14 @@ class PlaidUtils:
         )
         print(f"SUCCESS: all access tokens added to `{full_table_name}`\n")
 
-    def create_cursors_bq_table(self, confirm):
+    def create_cursors_bq_table(self, offset_days, confirm):
         """
         Creates an empty BigQuery table to store Plaid cursors. It retrieves Plaid access tokens
         and associated item IDs, then adds an empty cursor as the next cursor value to start fresh.
 
         Args:
-            confirm (bool): if table exists and confirm=True, confirm with Y/N if the pre-existing table should be deleted
+            offset_days (int): The number of days to offset when determining the partition date for the plaid_cursors_YYYYMMDD table.
+            confirm (bool): if table exists and confirm=True, confirm with Y/N if the pre-existing table should be deleted.
 
         Returns:
             google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
@@ -446,9 +454,9 @@ class PlaidUtils:
 
         # get BQ schema information
         plaid_cursors_bq = self.bq_tables.plaid_cursors_YYYYMMDD()
-        partition_date = self.bq.get_partition_date(offset_days=0)
-        table_prefix = self.bq.replace_table_prefix(plaid_cursors_bq["table_id"])
-        table_id = table_prefix + "_" + partition_date
+        partition_date = self.bq.get_partition_date(offset_days=offset_days)
+        table_prefix = self.bq.replace_table_suffix(plaid_cursors_bq["table_id"])
+        table_id = table_prefix + partition_date
 
         # create empty table to store account data
         self.bq.create_empty_bq_table(
@@ -521,23 +529,74 @@ class PlaidUtils:
             confirm=confirm,
         )
 
-    def create_removed_transactions_df(self, removed_transactions, date_removed):
+    def copy_temp_cursors_to_cursors_bq_table(self, offset_days, write_disposition):
+        """
+        Copies data from a temporary Plaid cursors table to a permanent Plaid cursors table in BigQuery.
+
+        Args:
+            offset_days (int): The number of days to offset when determining the partition date for the destination table.
+            write_disposition (str): The write disposition for the copy job. Possible values are "WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY".
+
+        Returns:
+            None: This function does not return anything. Copies data and prints a success message upon completion.
+        """
+
+        # get BQ schema information
+        plaid_cursors_bq = self.bq_tables.plaid_cursors_YYYYMMDD()
+        partition_date = self.bq.get_partition_date(offset_days=offset_days)
+        table_prefix = self.bq.replace_table_suffix(plaid_cursors_bq["table_id"])
+        table_id = table_prefix + partition_date
+
+        plaid_cursors_full_table = self.bq.concat_table_name(
+            plaid_cursors_bq["project_id"], plaid_cursors_bq["dataset_id"], table_id
+        )
+
+        temp_cursors_bq = self.bq_tables.temp_plaid_cursors()
+        temp_cursors_full_table = self.bq.concat_table_name(
+            temp_cursors_bq["project_id"], temp_cursors_bq["dataset_id"], temp_cursors_bq["table_id"]
+        )
+
+        # Copy temp_cursors -> plaid_cursors_YYYYMMDD
+        self.bq.copy_bq_table(
+            source_table=temp_cursors_full_table,
+            destination_table=plaid_cursors_full_table,
+            write_disposition=write_disposition,
+        )
+
+    def create_removed_df(self, item_id, removed_transactions, removed_accounts, partition_date):
         """
         Create a DataFrame containing removed transactions to filter out.
 
         Args:
+            item_id (str): A singular item_id the removed transaction pertains to.
             removed_transactions (list): A list of transaction_id to remove.
-            date_removed (str): The date the removed transactions were posted
+            removed_accounts (list): A list of account_id pertaining to the transaction_id to remove.
+            partition_date (str): The date the removed transactions were posted
 
         Returns:
             pandas.DataFrame: A DataFrame containing removed transaction_id's
         """
 
-        removed_df = pd.DataFrame({"transaction_id": removed_transactions})
-        removed_df["date_removed"] = date_removed
+        # item_id and date_removed (partition_date) are singular values, create lists to match the number of removed transactions
+        item_ids = [item_id] * len(removed_transactions)
+        dates_removed = [partition_date] * len(removed_transactions)
+
+        # add data to removed_df
+        removed_df = pd.DataFrame(
+            {
+                "item_id": item_ids,
+                "account_id": removed_accounts,
+                "transaction_id": removed_transactions,
+                "date_removed": dates_removed,
+            }
+        )
+
+        # remove any duplicates, if any
+        removed_df.drop_duplicates(inplace=True)
+
         return removed_df
 
-    def create_transactions_df(self, transactions, status_type):
+    def create_transactions_df(self, transactions, item_id, status_type):
         """
         Create a DataFrame containing transaction data from get_transactions().
 
@@ -656,32 +715,61 @@ class PlaidUtils:
             for counterparty in counterparties_list:
                 formatted_counterparties_list.append(
                     {
+                        "entity_id": counterparty["entity_id"],
                         "name": counterparty["name"],
                         "type": counterparty["type"],
+                        "confidence_level": counterparty["confidence_level"],
                         "logo_url": counterparty["logo_url"],
                         "website": counterparty["website"],
-                        "entity_id": counterparty["entity_id"],
-                        "confidence_level": counterparty["confidence_level"],
                     }
                 )
             formatted_counterparties.append(formatted_counterparties_list)
 
+        # only providing singular item_id, list size should be same as account_ids
+        item_ids = [item_id] * len(account_ids)
+
         # add account data to accounts_df
         transactions_df = pd.DataFrame(
             {
+                "item_id": item_ids,
                 "account_id": account_ids,
+                "transaction_id": transaction_ids,
+                "pending_transaction_id": pending_transaction_ids,
+                "is_pending": pendings,
                 "account_owner": account_owners,
                 "status": statuses,
-                "amount": amounts,
-                "authorized_date": authorized_dates,
-                "authorized_datetime": authorized_datetimes,
-                # "category": categories, # deprecated
-                # "category_id": category_ids, # deprecated
-                "check_number": check_numbers,
-                "counterparties": formatted_counterparties,  # counterparties array with name, type, logo_url, website, entity_id, and confidence_level fields
                 "date": dates,
                 "datetime": datetimes,
+                "authorized_date": authorized_dates,
+                "authorized_datetime": authorized_datetimes,
+                "amount": amounts,
                 "currency_code": currency_codes,
+                "unofficial_currency_code": unofficial_currency_codes,
+                "personal_finance_category": [  # personal_finance_category struct with confidence_level, primary, and detailed fields
+                    {
+                        "primary": primary,
+                        "detailed": detailed,
+                        "confidence_level": confidence_level,
+                    }
+                    for primary, detailed, confidence_level in zip(
+                        personal_finance_category_primaries,
+                        personal_finance_category_detailed,
+                        personal_finance_category_confidence_levels,
+                    )
+                ],
+                "payment_channel": payment_channels,
+                "merchant": [  # merchant struct with entity_id, merchant_name, and name fields
+                    {
+                        "entity_id": entity_id,
+                        "merchant_name": merchant_name,
+                        "name": name,
+                        "website": website,
+                    }
+                    for entity_id, merchant_name, name, website in zip(
+                        merchant_entity_ids, merchant_names, names, websites
+                    )
+                ],
+                "counterparties": formatted_counterparties,  # counterparties array with name, type, logo_url, website, entity_id, and confidence_level fields
                 "location": [  # location struct with address, city, region, postal_code, latitude, and longitude fields
                     {
                         "address": address,
@@ -695,21 +783,13 @@ class PlaidUtils:
                         addresses, cities, regions, postal_codes, latitudes, longitudes
                     )
                 ],
-                "merchant": [  # merchant struct with entity_id, merchant_name, and name fields
-                    {
-                        "entity_id": entity_id,
-                        "merchant_name": merchant_name,
-                        "name": name,
-                    }
-                    for entity_id, merchant_name, name in zip(merchant_entity_ids, merchant_names, names)
-                ],
-                "payment_channel": payment_channels,
+                "check_number": check_numbers,
                 "payment_meta": [  # payment_meta struct with reference_number, ppd_id, payee, by_order_of, payer, payment_method, payment_processor, and reason fields
                     {
                         "reference_number": reference_number,
                         "ppd_id": ppd_id,
-                        "payee": payee,
                         "by_order_of": by_order_of,
+                        "payee": payee,
                         "payer": payer,
                         "payment_method": payment_method,
                         "payment_processor": payment_processor,
@@ -726,36 +806,32 @@ class PlaidUtils:
                         reasons,
                     )
                 ],
-                "pending": pendings,
-                "pending_transaction_id": pending_transaction_ids,
-                "personal_finance_category": [  # personal_finance_category struct with confidence_level, primary, and detailed fields
-                    {
-                        "primary": primary,
-                        "detailed": detailed,
-                        "confidence_level": confidence_level,
-                    }
-                    for primary, detailed, confidence_level in zip(
-                        personal_finance_category_primaries,
-                        personal_finance_category_detailed,
-                        personal_finance_category_confidence_levels,
-                    )
-                ],
                 "transaction_code": transaction_codes,
-                "transaction_id": transaction_ids,
-                # "transaction_type": transaction_types, # deprecated
-                "unofficial_currency_code": unofficial_currency_codes,
-                "website": websites,
+                ### deprecated fields
+                # "category": categories,
+                # "category_id": category_ids,
+                # "transaction_type": transaction_types,
             }
         )
 
         return transactions_df
 
-    def create_empty_transactions_bq_table(self, confirm):
+    def create_empty_transactions_bq_table(self, offset_days, confirm):
+        """
+        Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
+
+        Args:
+            offset_days (int): The number of days to offset when determining the partition date for the table.
+            confirm (bool): If True and table already exists, will prompt user to delete the table. If False or table does not exist, table will automatically be created.
+
+        Returns:
+            None: This function does not return anything. Prints table details or a success message upon completion.
+        """
         # get BQ schema information
         plaid_transactions_bq = self.bq_tables.plaid_transactions_YYYYMMDD()
-        partition_date = self.bq.get_partition_date(offset_days=0)
-        table_prefix = self.bq.replace_table_prefix(plaid_transactions_bq["table_id"])
-        table_id = table_prefix + "_" + partition_date
+        partition_date = self.bq.get_partition_date(offset_days=offset_days)
+        table_prefix = self.bq.replace_table_suffix(plaid_transactions_bq["table_id"])
+        table_id = table_prefix + partition_date
 
         # create empty table to store account data
         self.bq.create_empty_bq_table(
@@ -767,12 +843,23 @@ class PlaidUtils:
             confirm=confirm,
         )
 
-    def create_empty_removed_bq_table(self, confirm):
+    def create_empty_removed_bq_table(self, offset_days, confirm):
+        """
+        Creates an empty plaid_removed_transactions_YYYYMMDD table in BQ for a specific partition date.
+
+        Args:
+            offset_days (int): The number of days to offset when determining the partition date for the table.
+            confirm (bool): If True and table already exists, will prompt user to delete the table. If False or table does not exist, table will automatically be created.
+
+        Returns:
+            None: This function does not return anything. Prints table details or a success message upon completion.
+        """
+
         # get BQ schema information
         plaid_removed_bq = self.bq_tables.plaid_removed_transactions_YYYYMMDD()
-        partition_date = self.bq.get_partition_date(offset_days=0)
-        table_prefix = self.bq.replace_table_prefix(plaid_removed_bq["table_id"])
-        table_id = table_prefix + "_" + partition_date
+        partition_date = self.bq.get_partition_date(offset_days=offset_days)
+        table_prefix = self.bq.replace_table_suffix(plaid_removed_bq["table_id"])
+        table_id = table_prefix + partition_date
 
         # create empty table to store account data
         self.bq.create_empty_bq_table(
