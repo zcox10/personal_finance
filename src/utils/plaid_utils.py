@@ -34,7 +34,6 @@ from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdReques
 
 class PlaidUtils:
     def __init__(self, bq_client, client_id, client_secret, host):
-        self.bq_client = bq_client
         self.bq = BqUtils(bq_client=bq_client)
         self.plaid_client = self.authenticate(client_id, client_secret, host)
         self.bq_tables = BqTableSchemas()
@@ -105,18 +104,7 @@ class PlaidUtils:
         except ApiException as e:
             return json.loads(e.body)
 
-    def add_accounts_to_bq(self, access_token, plaid_country_codes):
-        """
-        Add accounts data to a defined BQ table.
-
-        Args:
-            bq_client (google.cloud.bigquery.client.Client): BigQuery client instance.
-            access_token (str): Plaid access token.
-
-        Returns:
-            None
-        """
-
+    def create_accounts_df(self, access_token, plaid_country_codes):
         responses = self.get_accounts(access_token)
 
         item_ids = []
@@ -187,6 +175,82 @@ class PlaidUtils:
                 "billed_products": billed_products,
             }
         )
+        return accounts_df
+
+    def check_account_duplicates(self, full_table_name, accounts_df):
+        # determine if there are duplicate accounts in plaid_accounts table
+        try:
+            # store persistent_account_id and account_id in get_accounts_df
+            accts_q = f"""
+            SELECT DISTINCT
+              persistent_account_id,
+              account_id
+            FROM `{full_table_name}`
+            """
+            get_accts_df = self.bq.query(accts_q)
+
+            # determine if there are any duplicate persistent_account_id's
+            get_persistent_account_ids = [i for i in get_accts_df["persistent_account_id"].unique() if i is not None]
+            duplicate_persistent_account_ids = [
+                i for i in accounts_df["persistent_account_id"] if i in get_persistent_account_ids
+            ]
+
+            # if there are duplicates, prompt user if they want to add the accounts anyways
+            if len(duplicate_persistent_account_ids) > 0:
+                print("persistsent_account_id(s) already present in the data:")
+                for i in duplicate_persistent_account_ids:
+                    print(f"- {i}")
+
+                user_decision = self.bq.user_prompt(
+                    prompt="\nDo you want to continue?",
+                    action_response="adding persistent_account_id(s) that are already present",
+                    non_action_response="did not add persistent_account_id(s)",
+                )
+                if not user_decision:
+                    return False
+
+            # same process as above, determine if there are duplicates.
+            # If there are duplicates, prompt user if they want to continue or not
+            get_account_ids = [i for i in get_accts_df["account_id"].unique() if i is not None]
+            duplicate_account_ids = [i for i in accounts_df["account_id"] if i in get_account_ids]
+            if len(duplicate_account_ids) > 0:
+                print("account_id(s) already present in the data:")
+                for i in duplicate_account_ids:
+                    print(f"- {i}")
+
+                # prompt user to continue
+                user_decision = self.bq.user_prompt(
+                    prompt="\nDo you want to continue?",
+                    action_response="adding account_id(s) that are already present",
+                    non_action_response="did not add account_id(s)",
+                )
+                if user_decision:
+                    return True
+                else:
+                    return False
+
+            return True
+
+        except NotFound:
+            print(f"The table, `{full_table_name}`, was not found.")
+            return False
+        except Exception as e:
+            print(e)
+            return False
+
+    def add_accounts_to_bq(self, access_token, plaid_country_codes):
+        """
+        Add accounts data to a defined BQ table.
+
+        Args:
+            access_token (str): Plaid access token.
+            plaid_country_codes (list): Plaid country codes in list form.
+
+        Returns:
+            None
+        """
+
+        accounts_df = self.create_accounts_df(access_token, plaid_country_codes)
 
         # Define your BigQuery table reference
         plaid_accounts_bq = self.bq_tables.plaid_accounts()
@@ -196,55 +260,11 @@ class PlaidUtils:
             plaid_accounts_bq["project_id"], plaid_accounts_bq["dataset_id"], plaid_accounts_bq["table_id"]
         )
 
-        # get
-        try:
-            accts_q = f"""
-            SELECT DISTINCT
-              persistent_account_id,
-              account_id
-            FROM `{full_table_name}`
-            """
-            get_accts_df = self.bq.query(accts_q)
-
-            get_persistent_account_ids = [i for i in get_accts_df["persistent_account_id"].unique() if i is not None]
-            duplicate_persistent_account_ids = [i for i in persistent_account_ids if i in get_persistent_account_ids]
-            if len(duplicate_persistent_account_ids) > 0:
-                print("persistsent_account_id(s) already present in the data:")
-                for i in duplicate_persistent_account_ids:
-                    print(f"- {i}")
-
-                self.bq.user_prompt(
-                    prompt="\nDo you want to continue?",
-                    action=lambda: print("CONTINUE: adding persistent_account_id(s) that are already present"),
-                    non_action_response="did not add persistent_account_id(s)",
-                )
-
-            get_account_ids = [i for i in get_accts_df["account_id"].unique() if i is not None]
-            duplicate_account_ids = [i for i in account_ids if i in get_account_ids]
-            if len(duplicate_account_ids) > 0:
-                print("account_id(s) already present in the data:")
-                for i in duplicate_account_ids:
-                    print(f"- {i}")
-                self.bq.user_prompt(
-                    prompt="\nDo you want to continue?",
-                    action=lambda: print("CONTINUE: adding account_id(s) that are already present"),
-                    non_action_response="did not add account_id(s)",
-                )
-        except NotFound:
-            print(f"The table, `{full_table_name}`, was not found.")
-            return
-        except Exception as e:
-            print(e)
-            return
-
-        # Load the DataFrame into the BigQuery table (commit data to storage immediately)
-        job = self.bq_client.load_table_from_dataframe(accounts_df, full_table_name)
-
-        # Wait for job to complete
-        status = job.result()
-        print(f"Accounts successfully added to `{full_table_name}` -> access_token: {access_token}")
-
-        return
+        # (bool): if true, there are no duplicates and continue OR there are duplicates but chose to continue anyways
+        decision = self.check_account_duplicates(full_table_name, accounts_df)
+        if decision:
+            # Load the record to cursors temp BQ table. "WRITE_APPEND" because there are multiple individual uploads
+            self.bq.load_df_to_bq(accounts_df, full_table_name, "WRITE_APPEND")
 
     def get_latest_cursors(self):
         """
@@ -333,15 +353,18 @@ class PlaidUtils:
                     removed_transactions.append(r["transaction_id"])
 
             # add test transaction id
-            removed_transactions.append("test_transaction_id")
-            removed_accounts.append("test_account_id")
+            # removed_transactions.append("test_transaction_id")
+            # removed_accounts.append("test_account_id")
 
         # create a final removed_df to store removed transactions
         partition_date = self.bq.get_date(offset_days=offset_days)
         removed_df = self.create_removed_df(item_id, removed_transactions, removed_accounts, partition_date)
 
         # concat all transactions to main df
-        transactions_df = pd.concat(transactions_df_list)
+        if len(transactions_df_list) > 0:
+            transactions_df = pd.concat(transactions_df_list)
+        else:  # return empty df
+            return None, removed_df
 
         # add next cursor back to next_cursor table
         temp_plaid_cursors_bq = self.bq_tables.temp_plaid_cursors()
@@ -361,7 +384,7 @@ class PlaidUtils:
             full_table_name=temp_cursors_table_name,
         )
 
-        print(f"SUCCESS: retrieved transacstions for item_id: {item_id}")
+        print(f"SUCCESS: retrieved transactions for item_id: {item_id}")
 
         return transactions_df, removed_df
 
@@ -478,7 +501,8 @@ class PlaidUtils:
             plaid_cursors_bq["dataset_id"], plaid_cursors_bq["table_id"]
         )
 
-        return self.bq_client.load_table_from_dataframe(accounts_df, full_table_name)
+        # table should already be empty, so use WRITE_TRUNCATE
+        return self.bq.load_df_to_bq(accounts_df, full_table_name, "WRITE_TRUNCATE")
 
     def add_cursor_to_bq(self, item_id, access_token, next_cursor, full_table_name):
         """
@@ -497,13 +521,8 @@ class PlaidUtils:
         # create df storing an item_id, access_token, and next_cursor
         cursors_df = pd.DataFrame({"item_id": [item_id], "access_token": [access_token], "next_cursor": [next_cursor]})
 
-        # Load the DataFrame into the BigQuery table (commit data to storage immediately)
-        job = self.bq_client.load_table_from_dataframe(cursors_df, full_table_name)
-
-        # Wait for job to complete
-        status = job.result()
-        print(f"Cursors successfully added to `{full_table_name}`")
-        return status
+        # Load the record to cursors temp BQ table. "WRITE_APPEND" because there are multiple individual uploads
+        return self.bq.load_df_to_bq(cursors_df, full_table_name, "WRITE_APPEND")
 
     def create_temp_cursors_bq_table(self, confirm):
         """
@@ -541,27 +560,34 @@ class PlaidUtils:
             None: This function does not return anything. Copies data and prints a success message upon completion.
         """
 
-        # get BQ schema information
-        plaid_cursors_bq = self.bq_tables.plaid_cursors_YYYYMMDD()
-        partition_date = self.bq.get_partition_date(offset_days=offset_days)
-        table_prefix = self.bq.replace_table_suffix(plaid_cursors_bq["table_id"])
-        table_id = table_prefix + partition_date
-
-        plaid_cursors_full_table = self.bq.concat_table_name(
-            plaid_cursors_bq["project_id"], plaid_cursors_bq["dataset_id"], table_id
-        )
-
+        # get temp_cursors_bq table
         temp_cursors_bq = self.bq_tables.temp_plaid_cursors()
         temp_cursors_full_table = self.bq.concat_table_name(
             temp_cursors_bq["project_id"], temp_cursors_bq["dataset_id"], temp_cursors_bq["table_id"]
         )
 
-        # Copy temp_cursors -> plaid_cursors_YYYYMMDD
-        self.bq.copy_bq_table(
-            source_table=temp_cursors_full_table,
-            destination_table=plaid_cursors_full_table,
-            write_disposition=write_disposition,
-        )
+        # ensure temp_cursors has data to copy. If no data, print error message to user
+        if self.bq.bq_table_has_data(
+            temp_cursors_bq["project_id"], temp_cursors_bq["dataset_id"], temp_cursors_bq["table_id"]
+        ):
+            # get BQ schema information
+            plaid_cursors_bq = self.bq_tables.plaid_cursors_YYYYMMDD()
+            partition_date = self.bq.get_partition_date(offset_days=offset_days)
+            table_prefix = self.bq.replace_table_suffix(plaid_cursors_bq["table_id"])
+            table_id = table_prefix + partition_date
+
+            plaid_cursors_full_table = self.bq.concat_table_name(
+                plaid_cursors_bq["project_id"], plaid_cursors_bq["dataset_id"], table_id
+            )
+
+            # Copy temp_cursors -> plaid_cursors_YYYYMMDD
+            self.bq.copy_bq_table(
+                source_table=temp_cursors_full_table,
+                destination_table=plaid_cursors_full_table,
+                write_disposition=write_disposition,
+            )
+        else:
+            print(f"FAILED: `{temp_cursors_full_table}` has no data to copy.")
 
     def create_removed_df(self, item_id, removed_transactions, removed_accounts, partition_date):
         """
@@ -578,23 +604,26 @@ class PlaidUtils:
         """
 
         # item_id and date_removed (partition_date) are singular values, create lists to match the number of removed transactions
-        item_ids = [item_id] * len(removed_transactions)
-        dates_removed = [partition_date] * len(removed_transactions)
+        if len(removed_transactions) > 0:
+            item_ids = [item_id] * len(removed_transactions)
+            dates_removed = [partition_date] * len(removed_transactions)
 
-        # add data to removed_df
-        removed_df = pd.DataFrame(
-            {
-                "item_id": item_ids,
-                "account_id": removed_accounts,
-                "transaction_id": removed_transactions,
-                "date_removed": dates_removed,
-            }
-        )
+            # add data to removed_df
+            removed_df = pd.DataFrame(
+                {
+                    "item_id": item_ids,
+                    "account_id": removed_accounts,
+                    "transaction_id": removed_transactions,
+                    "date_removed": dates_removed,
+                }
+            )
 
-        # remove any duplicates, if any
-        removed_df.drop_duplicates(inplace=True)
+            # remove any duplicates, if any
+            removed_df.drop_duplicates(inplace=True)
 
-        return removed_df
+            return removed_df
+        else:
+            return None
 
     def create_transactions_df(self, transactions, item_id, status_type):
         """
@@ -890,7 +919,8 @@ class PlaidUtils:
             plaid_transactions_bq["dataset_id"], plaid_transactions_bq["table_id"]
         )
 
-        return self.bq_client.load_table_from_dataframe(transactions_df, full_table_name)
+        # upload df to plaid_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
+        return self.bq.load_df_to_bq(transactions_df, full_table_name, "WRITE_APPEND")
 
     def upload_removed_df_to_bq(self, removed_df):
         """
@@ -911,4 +941,5 @@ class PlaidUtils:
             plaid_removed_bq["dataset_id"], plaid_removed_bq["table_id"]
         )
 
-        return self.bq_client.load_table_from_dataframe(removed_df, full_table_name)
+        # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
+        return self.bq.load_df_to_bq(removed_df, full_table_name, "WRITE_APPEND")
