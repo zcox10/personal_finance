@@ -2,6 +2,7 @@ import json
 from datetime import timedelta, datetime as dt, timezone
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
+from google.cloud.bigquery import LoadJobConfig
 
 
 class BqUtils:
@@ -199,6 +200,57 @@ class BqUtils:
             else:
                 raise  # Other exception occurred, propagate it
 
+    def load_df_to_bq(self, df, full_table_name, write_disposition):
+        """
+        Loads a pandas DataFrame into a BigQuery table.
+
+        Args:
+            df (pandas.DataFrame): The DataFrame to be loaded into BigQuery.
+            full_table_name (str): The full name (project_id.dataset_id.table_id) of the destination table in BigQuery.
+            write_disposition (str): The write disposition for the job. Possible values are 'WRITE_EMPTY', 'WRITE_TRUNCATE', or 'WRITE_APPEND'.
+
+        Returns:
+            google.cloud.bigquery.job.LoadJob: The result of the load job.
+        """
+
+        job_config = LoadJobConfig()
+        job_config.write_disposition = write_disposition
+
+        load_job = self.bq_client.load_table_from_dataframe(df, full_table_name, job_config=job_config)
+        load_job.result()
+
+        if load_job.state == "DONE":
+            print(f"SUCCESS: df uploaded to `{full_table_name}`")
+
+        return load_job
+
+    def bq_table_has_data(self, project_id, dataset_id, table_id):
+        """
+        Returns True if a BQ table has at least 1 row of data; else False
+
+        Args:
+            project_id (str): ID of the BQ project containing the table.
+            dataset_id (str): ID of the BQ dataset containing the table.
+            table_id (str): ID of the BQ table to check
+
+        Returns:
+            bool: True if a BQ table has at least 1 row of data; else False
+        """
+
+        # concat "{project_id}.{dataset_id}.{table_id}"
+        full_table_name = self.concat_table_name(project_id, dataset_id, table_id)
+        table = self.bq_client.get_table(full_table_name)
+
+        if self.does_bq_table_exist(project_id, dataset_id, table_id):
+            full_table_name = self.concat_table_name(project_id, dataset_id, table_id)
+            table = self.bq_client.get_table(full_table_name)
+            if table.num_rows > 0:
+                return True
+            else:
+                return False
+        else:
+            print(f"`{full_table_name}` does not exist!")
+
     def copy_bq_table(self, source_table, destination_table, write_disposition):
         """
         Copies data from a source BigQuery table to a destination BigQuery table.
@@ -239,16 +291,19 @@ class BqUtils:
             table_id=table_id,
         )
 
-        if len(table_ids) == 0:  # if no tables exist, print FAILED statement
-            print(f"FAILED: no tables match the {table_id} pattern")
+        if len(table_ids) == 0:  # if no tables exist, delete single table
+            self.delete_bq_table(project_id, dataset_id, table_id, confirm=confirm)
 
         elif confirm:  # confirm whether to delete all tables or not, else delete all tables
             tables_to_delete = len(table_ids)
-            self.user_prompt(
+            user_decision = self.user_prompt(
                 prompt=f"Are you sure you want to delete {tables_to_delete} table(s): `{project_id}.{dataset_id}.{table_id}`?",
-                action=lambda: self.delete_list_of_tables(project_id, dataset_id, table_ids, confirm=False),
+                action_response=f"deleting `{project_id}.{dataset_id}.{table_id}` table(s)",
                 non_action_response=f"did not delete `{project_id}.{dataset_id}.{table_id}` table(s)",
             )
+            if user_decision:
+                self.delete_list_of_tables(project_id, dataset_id, table_ids, confirm=False)
+
         else:  # delete the tables without confirmation
             self.delete_list_of_tables(project_id, dataset_id, table_ids, confirm=False)
 
@@ -265,7 +320,7 @@ class BqUtils:
         for _table in table_ids:
             self.delete_bq_table(project_id, dataset_id, _table, confirm)
 
-    def user_prompt(self, prompt, action, non_action_response):
+    def user_prompt(self, prompt, action_response, non_action_response):
         """
         Prompts a user for a Y/N response. "Y" to continue and execute the action
 
@@ -274,14 +329,16 @@ class BqUtils:
             action (str): ID of the BQ table to check.
 
         Returns:
-            If user does not respond with "Y", returns nothing; else, executes the action
+            bool: True to continue with user action, else False
+
         """
         user_input = input(f"{prompt} (Y/N): ").strip().upper()
-        print()
         if user_input == "Y":
-            return action()
+            print("CONTINUE:", action_response, "\n")
+            return True
         else:
-            print("REJECTED USER INPUT:", non_action_response)
+            print("REJECTED USER INPUT:", non_action_response, "\n")
+            return False
 
     def delete_bq_table(self, project_id, dataset_id, table_id, confirm):
         """
@@ -304,11 +361,14 @@ class BqUtils:
 
             # confirm with Y/N if user should delete the table
             elif confirm:
-                self.user_prompt(
+                user_decision = self.user_prompt(
                     prompt=f"Are you sure you want to delete `{full_table_name}`?",
-                    action=lambda: self.bq_client.delete_table(full_table_name),
+                    action_response=f"deleting `{full_table_name}`",
                     non_action_response=f"did not delete `{full_table_name}`",
                 )
+
+                if user_decision:
+                    self.bq_client.delete_table(full_table_name)
 
             # if confirm != True, automatically delete the table without confirmation
             else:
