@@ -6,6 +6,7 @@ class BqTableSchemas:
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "plaid_accounts"
+        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores all Plaid account data.  Field descriptions available at https://plaid.com/docs/api/accounts/#accounts-get-response-accounts-persistent-account-id"
         table_schema = [
             {
@@ -92,6 +93,7 @@ class BqTableSchemas:
             "project_id": project_id,
             "dataset_id": dataset_id,
             "table_id": table_id,
+            "full_table_name": full_table_name,
             "table_description": table_description,
             "table_schema": table_schema,
         }
@@ -102,6 +104,7 @@ class BqTableSchemas:
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "plaid_cursors_YYYYMMDD"
+        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores Plaid item/access token cursors as of the latest run. Use latest partition to get most recently provided cursor"
         table_schema = [
             {
@@ -128,6 +131,7 @@ class BqTableSchemas:
             "project_id": project_id,
             "dataset_id": dataset_id,
             "table_id": table_id,
+            "full_table_name": full_table_name,
             "table_description": table_description,
             "table_schema": table_schema,
         }
@@ -138,6 +142,7 @@ class BqTableSchemas:
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "temp_plaid_cursors"
+        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores temporary Plaid item/access token cursors as of the latest run. Updates continuously until workflow finishes running, then adds all final accounts/cursors to new plaid_cursors_YYYYMMDD partition"
         table_schema = [
             {
@@ -164,6 +169,7 @@ class BqTableSchemas:
             "project_id": project_id,
             "dataset_id": dataset_id,
             "table_id": table_id,
+            "full_table_name": full_table_name,
             "table_description": table_description,
             "table_schema": table_schema,
         }
@@ -174,6 +180,7 @@ class BqTableSchemas:
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "plaid_transactions_YYYYMMDD"
+        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores Plaid transactions, partitioned daily"
         table_schema = [
             {
@@ -481,6 +488,7 @@ class BqTableSchemas:
             "project_id": project_id,
             "dataset_id": dataset_id,
             "table_id": table_id,
+            "full_table_name": full_table_name,
             "table_description": table_description,
             "table_schema": table_schema,
         }
@@ -491,6 +499,7 @@ class BqTableSchemas:
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "plaid_removed_transactions_YYYYMMDD"
+        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores Plaid removed transactions, partitioned daily"
         table_schema = [
             {
@@ -523,6 +532,7 @@ class BqTableSchemas:
             "project_id": project_id,
             "dataset_id": dataset_id,
             "table_id": table_id,
+            "full_table_name": full_table_name,
             "table_description": table_description,
             "table_schema": table_schema,
         }
