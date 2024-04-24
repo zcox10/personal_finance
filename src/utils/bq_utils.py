@@ -106,6 +106,19 @@ class BqUtils:
             return table_id
 
     def get_table_partitions(self, project_id, dataset_id, table_id):
+        """
+        Get the partitions that match a table pattern.
+        For example, if "test_table_YYYYMMDD" is input, it retrieves all "test_table_" prefix tables
+
+        Args:
+            dataset_id (str): ID of the project containing the tables.
+            dataset_id (str): ID of the dataset containing the tables.
+            table_id (str): Table id {table_id}_YYYYMMDD format used to filter tables.
+
+        Returns:
+            list: Full table ID's for a matching table pattern.
+        """
+
         # get table prefix by replacing partition_format e.g. YYYYMMDD, YYYYMM, YYYYMMDDHH
         table_prefix = self.replace_table_suffix(table_id)
 
@@ -171,6 +184,46 @@ class BqUtils:
         full_table_name = self.get_latest_full_table_name(dataset_id, table_id)
         table_id = full_table_name.split(".")[2]
         return table_id
+
+    def update_table_schema_latest_partition(self, schema):
+        """
+        Updates a table's schema provided via BqTableSchemas with the "table_id" value representing the latest partition.
+        For example, test_table_YYYYMMDD searches for the latest partition of test_table_YYYYMMDD (e.g. test_table_20240101)
+        and replaces the "table_id" dict value with "test_table_20240101" from "test_table_YYYYMMDD".  Best when grabbing the latest
+        partition
+
+        Args:
+            schema (dict): the schema represented in BqTableSchemas
+
+        Returns:
+            schema (dict): The updated table schema for the "table_id" value representing the latest partition
+        """
+
+        schema["table_id"] = self.get_latest_table_partition(schema["dataset_id"], schema["table_id"])
+        schema["full_table_name"] = schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
+        return schema
+
+    def update_table_schema_new_partition(self, schema, offset_days):
+        """
+        Updates a table's schema provided via BqTableSchemas with the "table_id" value representing a new partition.
+        For example, test_table_YYYYMMDD is provided, then using offset_days = 0 and current date is "20240401",
+        create a new value for schema["table_id"] = "test_table_20240401"
+
+        Args:
+            schema (dict): the schema represented in BqTableSchemas.
+            offset_days (int): the offset for the new partition depending on the current date.
+
+        Returns:
+            schema (dict): The updated table schema for the "table_id" value representing the latest partition
+        """
+
+        partition_date = self.get_partition_date(offset_days=offset_days)
+        table_prefix = self.replace_table_suffix(schema["table_id"])
+        table_id = table_prefix + partition_date
+
+        schema["table_id"] = table_id
+        schema["full_table_name"] = schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
+        return schema
 
     def concat_table_name(self, project_id, dataset_id, table_id):
         return project_id + "." + dataset_id + "." + table_id
@@ -239,10 +292,8 @@ class BqUtils:
 
         # concat "{project_id}.{dataset_id}.{table_id}"
         full_table_name = self.concat_table_name(project_id, dataset_id, table_id)
-        table = self.bq_client.get_table(full_table_name)
 
         if self.does_bq_table_exist(project_id, dataset_id, table_id):
-            full_table_name = self.concat_table_name(project_id, dataset_id, table_id)
             table = self.bq_client.get_table(full_table_name)
             if table.num_rows > 0:
                 return True
@@ -383,37 +434,6 @@ class BqUtils:
         except Exception as e:
             print("ERROR:", e)
 
-    def create_empty_bq_table(self, project_id, dataset_id, table_id, table_description, table_schema, confirm):
-        """
-        Creates an empty BQ table based on the specified dataset_id, table_id, table_description, and table_schema
-
-        Args:
-            dataset_id (str): ID of the BQ dataset containing the tables.
-            table_id (str): ID of the BQ table to check.
-            table_description (str): Description used to describe the table.
-            table_schema (str): Schema used to format the table.
-            confirm (bool): if table exists and confirm=True, confirm with Y/N if the table should be deleted
-
-        Returns:
-            google.cloud.bigquery.table.Table: The created BigQuery table.
-        """
-
-        # determine if the table exists. If it does, delete it
-        if self.does_bq_table_exist(project_id, dataset_id, table_id):
-            self.delete_bq_table(project_id, dataset_id, table_id, confirm)
-
-        # Define your BigQuery table
-        table = bigquery.Table(f"{self.bq_client.project}.{dataset_id}.{table_id}", schema=table_schema)
-        table.description = table_description
-
-        create_table = self.bq_client.create_table(table)
-
-        # concat "{project_id}.{dataset_id}.{table_id}"
-        full_table_name = self.concat_table_name(project_id, dataset_id, table_id)
-        print(f"SUCCESS: `{full_table_name}` successfully created!\n")
-
-        return create_table
-
     def query(self, query):
         """
         Execute a SQL query on a BigQuery table and return the result as a Pandas DataFrame.
@@ -429,7 +449,46 @@ class BqUtils:
         df = query_job.to_dataframe()
         return df
 
-    def create_table(self, query, destination_table, write_disposition):
+    def create_empty_bq_table(
+        self, project_id, dataset_id, table_id, table_description, table_schema, write_disposition
+    ):
+        """
+        Creates an empty BQ table based on the specified dataset_id, table_id, table_description, and table_schema
+
+        Args:
+            dataset_id (str): ID of the BQ dataset containing the tables.
+            table_id (str): ID of the BQ table to check.
+            table_description (str): Description used to describe the table.
+            table_schema (str): Schema used to format the table.
+            write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
+
+        Returns:
+            google.cloud.bigquery.table.Table: The created BigQuery table.
+        """
+
+        if self.does_bq_table_exist(project_id, dataset_id, table_id):
+            if write_disposition == "WRITE_TRUNCATE":
+                self.delete_bq_table(project_id, dataset_id, table_id, confirm=False)
+            else:
+                raise RuntimeError(f"`{self.bq_client.project}.{dataset_id}.{table_id}` already exists")
+
+        # Define your BigQuery table
+        table = bigquery.Table(
+            f"{self.bq_client.project}.{dataset_id}.{table_id}",
+            schema=table_schema,
+        )
+
+        table.description = table_description
+
+        create_table = self.bq_client.create_table(table)
+
+        # concat "{project_id}.{dataset_id}.{table_id}"
+        full_table_name = self.concat_table_name(project_id, dataset_id, table_id)
+        print(f"SUCCESS: `{full_table_name}` successfully created!\n")
+
+        return create_table
+
+    def create_query_bq_table(self, query, destination_table, write_disposition):
         """
         Execute a SQL query on a BigQuery table and write the result to a new BigQuery table.
 
