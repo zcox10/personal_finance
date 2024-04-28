@@ -1,18 +1,18 @@
 import json
+import time
 import pandas as pd
 from google.api_core.exceptions import NotFound
-
 from utils.bq_utils import BqUtils
 from sql.bq_table_schemas import BqTableSchemas
 
 
-class PlaidAccounts:
+class FinancialAccounts:
     def __init__(self, bq_client, plaid_client):
         self.__bq = BqUtils(bq_client=bq_client)
         self.__plaid_client = plaid_client
         self.__bq_tables = BqTableSchemas()
 
-    def __create_accounts_df(self, access_token, plaid_country_codes):
+    def __create_plaid_accounts_df(self, access_token, plaid_country_codes):
         responses = self.__plaid_client.get_accounts(access_token)
 
         item_ids = []
@@ -25,7 +25,10 @@ class PlaidAccounts:
         account_subtypes = []
         institution_ids = []
         institution_names = []
+        balances = []
         access_tokens = []
+        update_types = []
+        consent_expiration_times = []
         products = []
         billed_products = []
 
@@ -43,12 +46,26 @@ class PlaidAccounts:
             account_official_names.append(r["official_name"])
             account_types.append(r["type"])
             account_subtypes.append(r["subtype"])
+            access_tokens.append(access_token)
 
+            # order balance dict in preferred order
+            balances.append(
+                {
+                    "available": r["balances"]["available"],
+                    "current": r["balances"]["current"],
+                    "limit": r["balances"]["limit"],
+                    "currency_code": r["balances"]["iso_currency_code"],
+                    "unofficial_currency_code": r["balances"]["unofficial_currency_code"],
+                }
+            )
+
+            # item data
             item_ids.append(responses["item"]["item_id"])
             institution_ids.append(responses["item"]["institution_id"])
+            update_types.append(responses["item"]["update_type"])
+            consent_expiration_times.append(responses["item"]["consent_expiration_time"])
             billed_products.append(responses["item"]["billed_products"])
             products.append(responses["item"]["products"])
-            access_tokens.append(access_token)
 
         # get institution names
         distinct_institutions = list(set(institution_ids))
@@ -76,9 +93,13 @@ class PlaidAccounts:
                 "account_official_name": account_official_names,
                 "account_type": account_types,
                 "account_subtype": account_subtypes,
+                "account_source": ["PLAID"] * len(item_ids),  # indicates account originates from Plaid
                 "institution_id": institution_ids,
                 "institution_name": institution_names,
+                "balance": balances,
                 "access_token": access_tokens,
+                "update_type": update_types,
+                "consent_expiration_time": consent_expiration_times,
                 "products": products,
                 "billed_products": billed_products,
             }
@@ -86,7 +107,7 @@ class PlaidAccounts:
         return accounts_df
 
     def __check_account_duplicates(self, full_table_name, accounts_df):
-        # determine if there are duplicate accounts in plaid_accounts table
+        # determine if there are duplicate accounts in financial_accounts table
         try:
             # store persistent_account_id and account_id in get_accounts_df
             accts_q = f"""
@@ -146,7 +167,7 @@ class PlaidAccounts:
             print(e)
             return False
 
-    def add_accounts_to_bq(self, access_token, plaid_country_codes):
+    def add_plaid_accounts_to_bq(self, access_tokens, plaid_country_codes, offset_days):
         """
         Add accounts data to a defined BQ table.
 
@@ -158,49 +179,45 @@ class PlaidAccounts:
             None
         """
 
-        accounts_df = self.__create_accounts_df(access_token, plaid_country_codes)
+        # add access tokens to accounts table
+        financial_accounts_bq = self.__bq.update_table_schema_partition(
+            schema=self.__bq_tables.financial_accounts_YYYYMMDD(),
+            offset_days=offset_days,
+        )
+        for token in list(set(access_tokens)):
+            accounts_df = self.__create_plaid_accounts_df(token, plaid_country_codes)
 
-        # Define your BigQuery table reference
-        plaid_accounts_bq = self.__bq_tables.plaid_accounts()
+            # (bool): if true, there are no duplicates and continue OR there are duplicates but chose to continue anyways
+            decision = self.__check_account_duplicates(financial_accounts_bq["full_table_name"], accounts_df)
+            if decision:
+                # Load the record to cursors temp BQ table. "WRITE_APPEND" because there are multiple individual uploads
+                self.__bq.load_df_to_bq(accounts_df, financial_accounts_bq["full_table_name"], "WRITE_APPEND")
+                time.sleep(3)
 
-        # (bool): if true, there are no duplicates and continue OR there are duplicates but chose to continue anyways
-        decision = self.__check_account_duplicates(plaid_accounts_bq["full_table_name"], accounts_df)
-        if decision:
-            # Load the record to cursors temp BQ table. "WRITE_APPEND" because there are multiple individual uploads
-            self.__bq.load_df_to_bq(accounts_df, plaid_accounts_bq["full_table_name"], "WRITE_APPEND")
+        print(f"SUCCESS: all access tokens added to `{financial_accounts_bq['full_table_name']}`\n")
 
-    def create_accounts_bq_table(self, access_tokens, plaid_country_codes, write_disposition):
+    def create_empty_accounts_bq_table(self, offset_days, write_disposition):
         """
-        Creates an empty BigQuery table to store Plaid account data. Uses the provided access tokens
-        to fetch account information from the Plaid API and adds it to the BigQuery table.
+        Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
 
         Args:
-            access_tokens (list): A list of access tokens for accessing Plaid API and fetching account data.
-            plaid_country_codes (list): A list of Plaid country codes to specify the country for which accounts are fetched.
+            offset_days (int): The number of days to offset when determining the partition date for the table.
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
-            None
+            None: This function does not return anything. Prints table details or a success message upon completion.
         """
-
         # get BQ schema information
-        plaid_accounts_bq = self.__bq_tables.plaid_accounts()
+        financial_accounts_bq = self.__bq.update_table_schema_partition(
+            schema=self.__bq_tables.financial_accounts_YYYYMMDD(), offset_days=offset_days
+        )
 
         # create empty table to store account data
         self.__bq.create_empty_bq_table(
-            project_id=plaid_accounts_bq["project_id"],
-            dataset_id=plaid_accounts_bq["dataset_id"],
-            table_id=plaid_accounts_bq["table_id"],
-            table_description=plaid_accounts_bq["table_description"],
-            table_schema=plaid_accounts_bq["table_schema"],
+            project_id=financial_accounts_bq["project_id"],
+            dataset_id=financial_accounts_bq["dataset_id"],
+            table_id=financial_accounts_bq["table_id"],
+            table_description=financial_accounts_bq["table_description"],
+            table_schema=financial_accounts_bq["table_schema"],
             write_disposition=write_disposition,
         )
-
-        # add access tokens to new empty accounts table
-        for token in access_tokens:
-            self.add_accounts_to_bq(
-                access_token=token,
-                plaid_country_codes=plaid_country_codes,
-            )
-
-        print(f"SUCCESS: all access tokens added to `{plaid_accounts_bq['full_table_name']}`\n")

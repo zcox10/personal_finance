@@ -2,10 +2,10 @@ class BqTableSchemas:
     def __init__(self):
         pass
 
-    def plaid_accounts(self):
+    def financial_accounts_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
-        table_id = "plaid_accounts"
+        table_id = "financial_accounts_YYYYMMDD"
         full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores all Plaid account data.  Field descriptions available at https://plaid.com/docs/api/accounts/#accounts-get-response-accounts-persistent-account-id"
         table_schema = [
@@ -58,6 +58,12 @@ class BqTableSchemas:
                 "description": "",
             },
             {
+                "name": "account_source",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
                 "name": "institution_id",
                 "type": "STRING",
                 "mode": "NULLABLE",
@@ -70,8 +76,57 @@ class BqTableSchemas:
                 "description": "",
             },
             {
+                "name": "balance",
+                "type": "STRUCT",
+                "mode": "NULLABLE",
+                "fields": [
+                    {
+                        "name": "available",
+                        "type": "FLOAT",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "current",
+                        "type": "FLOAT",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "limit",
+                        "type": "FLOAT",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "currency_code",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "unofficial_currency_code",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                ],
+            },
+            {
                 "name": "access_token",
                 "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "update_type",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "consent_expiration_time",
+                "type": "DATETIME",
                 "mode": "NULLABLE",
                 "description": "",
             },
@@ -251,7 +306,7 @@ class BqTableSchemas:
             },
             {
                 "name": "amount",
-                "type": "FLOAT64",
+                "type": "FLOAT",
                 "mode": "NULLABLE",
                 "description": "",
             },
@@ -403,13 +458,13 @@ class BqTableSchemas:
                     },
                     {
                         "name": "latitude",
-                        "type": "FLOAT64",
+                        "type": "FLOAT",
                         "mode": "NULLABLE",
                         "description": "",
                     },
                     {
                         "name": "longitude",
-                        "type": "FLOAT64",
+                        "type": "FLOAT",
                         "mode": "NULLABLE",
                         "description": "",
                     },
@@ -525,6 +580,476 @@ class BqTableSchemas:
                 "type": "DATE",
                 "mode": "NULLABLE",
                 "description": "",
+            },
+        ]
+
+        schema = {
+            "project_id": project_id,
+            "dataset_id": dataset_id,
+            "table_id": table_id,
+            "full_table_name": full_table_name,
+            "table_description": table_description,
+            "table_schema": table_schema,
+        }
+
+        return schema
+
+    def plaid_investment_holdings_YYYYMMDD(self):
+        project_id = "zsc-personal"
+        dataset_id = "personal_finance"
+        table_id = "plaid_investment_holdings_YYYYMMDD"
+        full_table_name = project_id + "." + dataset_id + "." + table_id
+        table_description = "Stores Plaid investment holdings, partitioned daily"
+        table_schema = [
+            {
+                "name": "item_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "account_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "cost_basis",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "institution_price",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "institution_price_date",
+                "type": "DATE",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "institution_price_datetime",
+                "type": "DATETIME",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "institution_value",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "currency_code",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "unofficial_currency_code",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "quantity",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "vested_quantity",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "vested_value",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "security",
+                "type": "STRUCT",
+                "mode": "NULLABLE",
+                "fields": [
+                    {
+                        "name": "security_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "currency_code",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "unofficial_currency_code",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "close_price",
+                        "type": "FLOAT",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "close_price_date",
+                        "type": "DATE",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "update_datetime",
+                        "type": "DATETIME",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "cusip",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "institution_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "institution_security_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "is_cash_equivalent",
+                        "type": "BOOL",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "isin",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "market_identifier_code",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "name",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "option_contract",
+                        "type": "STRUCT",
+                        "mode": "NULLABLE",
+                        "fields": [
+                            {
+                                "name": "contract_type",
+                                "type": "STRING",
+                                "mode": "NULLABLE",
+                                "description": "",
+                            },
+                            {
+                                "name": "expiration_date",
+                                "type": "STRING",
+                                "mode": "NULLABLE",
+                                "description": "",
+                            },
+                            {
+                                "name": "strike_price",
+                                "type": "FLOAT",
+                                "mode": "NULLABLE",
+                                "description": "",
+                            },
+                            {
+                                "name": "underlying_security_ticker",
+                                "type": "STRING",
+                                "mode": "NULLABLE",
+                                "description": "",
+                            },
+                        ],
+                    },
+                    {
+                        "name": "proxy_security_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "sedol",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "ticker_symbol",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "type",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                ],
+            },
+        ]
+
+        schema = {
+            "project_id": project_id,
+            "dataset_id": dataset_id,
+            "table_id": table_id,
+            "full_table_name": full_table_name,
+            "table_description": table_description,
+            "table_schema": table_schema,
+        }
+
+        return schema
+
+    def plaid_investment_transactions_YYYYMMDD(self):
+        project_id = "zsc-personal"
+        dataset_id = "personal_finance"
+        table_id = "plaid_investment_transactions_YYYYMMDD"
+        full_table_name = project_id + "." + dataset_id + "." + table_id
+        table_description = "Stores Plaid investment transactions, partitioned daily"
+        table_schema = [
+            {
+                "name": "item_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "account_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "investment_transaction_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "date",
+                "type": "DATE",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "name",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "quantity",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "amount",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "price",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "fees",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "type",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "subtype",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "currency_code",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "unofficial_currency_code",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "security",
+                "type": "STRUCT",
+                "mode": "NULLABLE",
+                "fields": [
+                    {
+                        "name": "security_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "currency_code",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "unofficial_currency_code",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "close_price",
+                        "type": "FLOAT",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "close_price_date",
+                        "type": "DATE",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "update_datetime",
+                        "type": "DATETIME",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "cusip",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "institution_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "institution_security_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "is_cash_equivalent",
+                        "type": "BOOL",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "isin",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "market_identifier_code",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "name",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "option_contract",
+                        "type": "STRUCT",
+                        "mode": "NULLABLE",
+                        "fields": [
+                            {
+                                "name": "contract_type",
+                                "type": "STRING",
+                                "mode": "NULLABLE",
+                                "description": "",
+                            },
+                            {
+                                "name": "expiration_date",
+                                "type": "STRING",
+                                "mode": "NULLABLE",
+                                "description": "",
+                            },
+                            {
+                                "name": "strike_price",
+                                "type": "FLOAT",
+                                "mode": "NULLABLE",
+                                "description": "",
+                            },
+                            {
+                                "name": "underlying_security_ticker",
+                                "type": "STRING",
+                                "mode": "NULLABLE",
+                                "description": "",
+                            },
+                        ],
+                    },
+                    {
+                        "name": "proxy_security_id",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "sedol",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "ticker_symbol",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                    {
+                        "name": "type",
+                        "type": "STRING",
+                        "mode": "NULLABLE",
+                        "description": "",
+                    },
+                ],
             },
         ]
 

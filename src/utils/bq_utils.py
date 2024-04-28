@@ -90,7 +90,7 @@ class BqUtils:
 
     def replace_table_suffix(self, table_id):
         """
-        If table_id ends with any format in partition_formst, replace with just table_prefix; else table_prefix = table_id
+        If table_id ends with any format in partition_format, replace with just table_prefix; else table_prefix = table_id
 
         Args:
             table_id (str): Table id used to replace table_prefix
@@ -203,7 +203,7 @@ class BqUtils:
         schema["full_table_name"] = schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
         return schema
 
-    def update_table_schema_new_partition(self, schema, offset_days):
+    def update_table_schema_partition(self, schema, offset_days):
         """
         Updates a table's schema provided via BqTableSchemas with the "table_id" value representing a new partition.
         For example, test_table_YYYYMMDD is provided, then using offset_days = 0 and current date is "20240401",
