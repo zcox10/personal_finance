@@ -57,7 +57,7 @@ class PlaidTransactions:
         """
 
         # get BQ schema information, create new partition
-        plaid_cursors_bq = self.__bq.update_table_schema_new_partition(
+        plaid_cursors_bq = self.__bq.update_table_schema_partition(
             schema=self.__bq_tables.plaid_cursors_YYYYMMDD(), offset_days=offset_days
         )
 
@@ -144,7 +144,7 @@ class PlaidTransactions:
             temp_cursors_bq["project_id"], temp_cursors_bq["dataset_id"], temp_cursors_bq["table_id"]
         ):
             # get BQ schema information
-            plaid_cursors_bq = self.__bq.update_table_schema_new_partition(
+            plaid_cursors_bq = self.__bq.update_table_schema_partition(
                 schema=self.__bq_tables.plaid_cursors_YYYYMMDD(), offset_days=offset_days
             )
 
@@ -196,7 +196,7 @@ class PlaidTransactions:
 
     def __create_transactions_df(self, transactions, item_id, status_type):
         """
-        Create a DataFrame containing transaction data from get_transactions().
+        Create a DataFrame containing transaction data from create_transactions_df().
 
         Args:
             transactions (dict): A dictionary containing transaction information.
@@ -333,7 +333,7 @@ class PlaidTransactions:
                 "account_id": account_ids,
                 "transaction_id": transaction_ids,
                 "pending_transaction_id": pending_transaction_ids,
-                "is_pending": pendings,
+                "is_pending": pd.Series(pendings, dtype="bool"),  # ensure cast to bool
                 "account_owner": account_owners,
                 "status": statuses,
                 "date": dates,
@@ -426,7 +426,7 @@ class PlaidTransactions:
             None: This function does not return anything. Prints table details or a success message upon completion.
         """
         # get BQ schema information
-        plaid_transactions_bq = self.__bq.update_table_schema_new_partition(
+        plaid_transactions_bq = self.__bq.update_table_schema_partition(
             schema=self.__bq_tables.plaid_transactions_YYYYMMDD(), offset_days=offset_days
         )
 
@@ -453,22 +453,21 @@ class PlaidTransactions:
         """
 
         # get BQ schema information
-        plaid_removed_bq = self.__bq_tables.plaid_removed_transactions_YYYYMMDD()
-        partition_date = self.__bq.get_partition_date(offset_days=offset_days)
-        table_prefix = self.__bq.replace_table_suffix(plaid_removed_bq["table_id"])
-        table_id = table_prefix + partition_date
+        plaid_removed_bq = self.__bq.update_table_schema_partition(
+            schema=self.__bq_tables.plaid_removed_transactions_YYYYMMDD(), offset_days=offset_days
+        )
 
         # create empty table to store account data
         self.__bq.create_empty_bq_table(
             project_id=plaid_removed_bq["project_id"],
             dataset_id=plaid_removed_bq["dataset_id"],
-            table_id=table_id,
+            table_id=plaid_removed_bq["table_id"],
             table_description=plaid_removed_bq["table_description"],
             table_schema=plaid_removed_bq["table_schema"],
             write_disposition=write_disposition,
         )
 
-    def upload_transactions_df_to_bq(self, transactions_df):
+    def upload_transactions_df_to_bq(self, transactions_df, offset_days):
         """
         Upload the transactions_df to a pre-existing plaid_transactions_YYYYMMDD BQ table
 
@@ -481,14 +480,15 @@ class PlaidTransactions:
         """
 
         # get BQ schema information
-        plaid_transactions_bq = self.__bq.update_table_schema_latest_partition(
-            self.__bq_tables.plaid_transactions_YYYYMMDD()
+        plaid_transactions_bq = self.__bq.update_table_schema_partition(
+            self.__bq_tables.plaid_transactions_YYYYMMDD(),
+            offset_days=offset_days,
         )
 
         # upload df to plaid_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(transactions_df, plaid_transactions_bq["full_table_name"], "WRITE_APPEND")
 
-    def upload_removed_df_to_bq(self, removed_df):
+    def upload_removed_df_to_bq(self, removed_df, offset_days):
         """
         Upload the removed_df to a pre-existing plaid_removed_transactions_YYYYMMDD BQ table
 
@@ -501,24 +501,22 @@ class PlaidTransactions:
         """
 
         # get BQ schema information
-        plaid_removed_bq = self.__bq_tables.plaid_removed_transactions_YYYYMMDD()
+        plaid_removed_bq = self.__bq.update_table_schema_partition(
+            self.__bq_tables.plaid_removed_transactions_YYYYMMDD(),
+            offset_days=offset_days,
+        )
 
         # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(removed_df, plaid_removed_bq["full_table_name"], "WRITE_APPEND")
 
-    def get_transactions(self, access_token, item_id, next_cursor, offset_days):
-        removed_transactions, removed_accounts, transactions_json = self.__plaid_client.get_transactions_data(
-            access_token, next_cursor
+    def generate_transactions_dfs(self, access_token, item_id, next_cursor, offset_days, add_test_transaction):
+        removed_transactions, removed_accounts, transactions_json, latest_cursor = (
+            self.__plaid_client.get_transactions_data(access_token, next_cursor, add_test_transaction)
         )
 
         transactions_df_list = []
-        for transactions in transactions_json["added"]:
-            added_df = self.__create_transactions_df(transactions, item_id, "ADDED")
-            transactions_df_list.append(added_df)
-
-        for transactions in transactions_json["modified"]:
-            modified_df = self.__create_transactions_df(transactions, item_id, "MODIFIED")
-            transactions_df_list.append(modified_df)
+        transactions_df_list.append(self.__create_transactions_df(transactions_json["added"], item_id, "ADDED"))
+        transactions_df_list.append(self.__create_transactions_df(transactions_json["modified"], item_id, "MODIFIED"))
 
         # create a final removed_df to store removed transactions
         partition_date = self.__bq.get_date(offset_days=offset_days)
@@ -537,7 +535,7 @@ class PlaidTransactions:
         self.add_cursor_to_bq(
             item_id=item_id,
             access_token=access_token,
-            next_cursor=next_cursor,
+            next_cursor=latest_cursor,
             full_table_name=temp_plaid_cursors_bq["full_table_name"],
         )
 

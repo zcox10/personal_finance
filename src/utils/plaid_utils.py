@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from utils.bq_utils import BqUtils
 from sql.bq_table_schemas import BqTableSchemas
 
@@ -12,6 +13,8 @@ from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdReques
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.investments_holdings_get_request import InvestmentsHoldingsGetRequest
+from plaid.model.investments_transactions_get_request import InvestmentsTransactionsGetRequest
+from plaid.model.investments_transactions_get_request_options import InvestmentsTransactionsGetRequestOptions
 
 
 class PlaidUtils:
@@ -97,33 +100,41 @@ class PlaidUtils:
             pandas.DataFrame: Details of the items.
         """
 
-        # get BQ schema for plaid_accounts table
-        plaid_accounts_bq = self.__bq_tables.plaid_accounts()
+        # get BQ schema for financial_accounts table
+        financial_accounts_bq = self.__bq.update_table_schema_latest_partition(
+            schema=self.__bq_tables.financial_accounts_YYYYMMDD()
+        )
 
         if not self.__bq.does_bq_table_exist(
-            plaid_accounts_bq["project_id"], plaid_accounts_bq["dataset_id"], plaid_accounts_bq["table_id"]
+            financial_accounts_bq["project_id"], financial_accounts_bq["dataset_id"], financial_accounts_bq["table_id"]
         ):
-            print(f"`{plaid_accounts_bq['full_table_name']}` does not exist!")
+            print(f"`{financial_accounts_bq['full_table_name']}` does not exist!")
             return None
 
+        # if products specified, only pull specified accounts from a designated product
+        # else, return all plaid items + access_tokens
         if len(products) != 0:
             products_filter = '"' + '", "'.join(products) + '"'
-            where_clause = f"WHERE EXISTS(SELECT 1 FROM UNNEST(products) p WHERE p IN ({products_filter}))"
+            where_clause = f"""
+            WHERE 
+              account_source = "PLAID"
+              AND EXISTS(SELECT 1 FROM UNNEST(products) p WHERE p IN ({products_filter}))
+            """
         else:
-            where_clause = ""
+            where_clause = "WHERE account_source = 'PLAID'"
 
         # generate query to pull access_token and item_id, then return as a df
         query = f"""
         SELECT DISTINCT
           access_token,
           item_id
-        FROM `{plaid_accounts_bq["full_table_name"]}`
+        FROM `{financial_accounts_bq["full_table_name"]}`
         {where_clause}
         """
 
         return self.__bq.query(query)
 
-    def get_transactions_data(self, access_token, next_cursor):
+    def get_transactions_data(self, access_token, next_cursor, add_test_transaction):
         """
         Retrieves transactions and handles pagination.
 
@@ -133,7 +144,7 @@ class PlaidUtils:
             access_token (str): Access token for Plaid API.
             item_id (str): ID of the item associated with the transactions.
             next_cursor (str): Cursor for fetching the next set of transactions.
-            offset_days (int): The number of days to offset for the date_removed field
+            add_test_transaction (bool): True if should add a test transaction
 
         Returns:
             tuple: A tuple containing:
@@ -145,7 +156,6 @@ class PlaidUtils:
         """
 
         # get transactions
-        # try:
         has_more = True
         removed_transactions = []
         removed_accounts = []
@@ -165,10 +175,10 @@ class PlaidUtils:
             # self.__bq.pretty_print_response(transactions_json)
 
             if len(transactions_json["added"]) > 0:
-                transactions_added.append(transactions_json["added"])
+                transactions_added += transactions_json["added"]
 
             if len(transactions_json["modified"]) > 0:
-                transactions_modified.append(transactions_json["modified"])
+                transactions_modified += transactions_json["modified"]
 
             # add all removed transactions to removed_transactions list
             if len(transactions_json["removed"]) > 0:
@@ -177,21 +187,51 @@ class PlaidUtils:
                     removed_transactions.append(r["transaction_id"])
 
             # add test transaction id
-            # removed_transactions.append("test_transaction_id")
-            # removed_accounts.append("test_account_id")
+            if add_test_transaction:
+                removed_accounts.append("test_account_id")
+                removed_transactions.append("test_transaction_id")
 
         transactions_final = {"added": transactions_added, "modified": transactions_modified}
-        return removed_transactions, removed_accounts, transactions_final
+        return removed_transactions, removed_accounts, transactions_final, next_cursor
 
-    def get_investment_holdings(self, access_token):
+    def get_investment_holdings_data(self, access_token):
         # Pull Holdings for an Item
         request = InvestmentsHoldingsGetRequest(access_token=access_token)
         response = self.plaid_client.investments_holdings_get(request)
 
-        # # Handle Holdings response
-        # holdings = response["holdings"]
-
-        # # Handle Securities response
-        # securities = response["securities"]
-
         return response
+
+    def get_investment_transactions_data(self, start_date, end_date, access_token):
+        RESULTS_COUNT = 500
+        request = InvestmentsTransactionsGetRequest(
+            access_token=access_token,
+            start_date=date.fromisoformat(start_date),
+            end_date=date.fromisoformat(end_date),
+            options=InvestmentsTransactionsGetRequestOptions(count=RESULTS_COUNT),
+        )
+        response = self.plaid_client.investments_transactions_get(request)
+
+        securities_json = response["securities"]
+        item_id = response["item"]["item_id"]
+        current_transactions_count = len(response["investment_transactions"])
+        total_transactions_count = response["total_investment_transactions"]
+
+        if current_transactions_count >= total_transactions_count:
+            return response, securities_json, item_id
+        else:
+            investment_transactions_json = response["investment_transactions"]
+
+            while current_transactions_count < total_transactions_count:
+                request = InvestmentsTransactionsGetRequest(
+                    access_token=access_token,
+                    start_date=date.fromisoformat(start_date),
+                    end_date=date.fromisoformat(end_date),
+                    options=InvestmentsTransactionsGetRequestOptions(
+                        count=RESULTS_COUNT, offset=current_transactions_count
+                    ),
+                )
+                response = self.plaid_client.investments_transactions_get(request)
+                investment_transactions_json += response["investment_transactions"]
+                current_transactions_count += len(response["investment_transactions"])
+
+            return investment_transactions_json, securities_json, item_id
