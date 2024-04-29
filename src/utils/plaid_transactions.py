@@ -180,10 +180,10 @@ class PlaidTransactions:
             # add data to removed_df
             removed_df = pd.DataFrame(
                 {
-                    "item_id": item_ids,
-                    "account_id": removed_accounts,
-                    "transaction_id": removed_transactions,
-                    "date_removed": dates_removed,
+                    "item_id": pd.Series(item_ids, dtype="str"),
+                    "account_id": pd.Series(removed_accounts, dtype="str"),
+                    "transaction_id": pd.Series(removed_transactions, dtype="str"),
+                    "date_removed": pd.Series(dates_removed, dtype="datetime64[ns]"),
                 }
             )
 
@@ -329,20 +329,20 @@ class PlaidTransactions:
         # add account data to accounts_df
         transactions_df = pd.DataFrame(
             {
-                "item_id": item_ids,
-                "account_id": account_ids,
-                "transaction_id": transaction_ids,
-                "pending_transaction_id": pending_transaction_ids,
-                "is_pending": pd.Series(pendings, dtype="bool"),  # ensure cast to bool
-                "account_owner": account_owners,
-                "status": statuses,
-                "date": dates,
-                "datetime": datetimes,
-                "authorized_date": authorized_dates,
-                "authorized_datetime": authorized_datetimes,
-                "amount": amounts,
-                "currency_code": currency_codes,
-                "unofficial_currency_code": unofficial_currency_codes,
+                "item_id": pd.Series(item_ids, dtype="str"),
+                "account_id": pd.Series(account_ids, dtype="str"),
+                "transaction_id": pd.Series(transaction_ids, dtype="str"),
+                "pending_transaction_id": pd.Series(pending_transaction_ids, dtype="str"),
+                "is_pending": pd.Series(pendings, dtype="bool"),
+                "account_owner": pd.Series(account_owners, dtype="str"),
+                "status": pd.Series(statuses, dtype="str"),
+                "date": pd.Series(dates, dtype="datetime64[ns]"),
+                "datetime": pd.to_datetime(datetimes).tz_localize(None),
+                "authorized_date": pd.Series(authorized_dates, dtype="datetime64[ns]"),
+                "authorized_datetime": pd.to_datetime(authorized_datetimes).tz_localize(None),
+                "amount": pd.Series(amounts, dtype="float64"),
+                "currency_code": pd.Series(currency_codes, dtype="str"),
+                "unofficial_currency_code": pd.Series(unofficial_currency_codes, dtype="str"),
                 "personal_finance_category": [  # personal_finance_category struct with confidence_level, primary, and detailed fields
                     {
                         "primary": primary,
@@ -350,12 +350,12 @@ class PlaidTransactions:
                         "confidence_level": confidence_level,
                     }
                     for primary, detailed, confidence_level in zip(
-                        personal_finance_category_primaries,
-                        personal_finance_category_detailed,
-                        personal_finance_category_confidence_levels,
+                        pd.Series(personal_finance_category_primaries, dtype="str"),
+                        pd.Series(personal_finance_category_detailed, dtype="str"),
+                        pd.Series(personal_finance_category_confidence_levels, dtype="str"),
                     )
                 ],
-                "payment_channel": payment_channels,
+                "payment_channel": pd.Series(payment_channels, dtype="str"),
                 "merchant": [  # merchant struct with entity_id, merchant_name, and name fields
                     {
                         "entity_id": entity_id,
@@ -364,7 +364,10 @@ class PlaidTransactions:
                         "website": website,
                     }
                     for entity_id, merchant_name, name, website in zip(
-                        merchant_entity_ids, merchant_names, names, websites
+                        pd.Series(merchant_entity_ids, dtype="str"),
+                        pd.Series(merchant_names, dtype="str"),
+                        pd.Series(names, dtype="str"),
+                        pd.Series(websites, dtype="str"),
                     )
                 ],
                 "counterparties": formatted_counterparties,  # counterparties array with name, type, logo_url, website, entity_id, and confidence_level fields
@@ -378,7 +381,12 @@ class PlaidTransactions:
                         "longitude": longitude,
                     }
                     for address, city, region, postal_code, latitude, longitude in zip(
-                        addresses, cities, regions, postal_codes, latitudes, longitudes
+                        pd.Series(addresses, dtype="str"),
+                        pd.Series(cities, dtype="str"),
+                        pd.Series(regions, dtype="str"),
+                        pd.Series(postal_codes, dtype="str"),
+                        pd.Series(latitudes, dtype="float64"),
+                        pd.Series(longitudes, dtype="float64"),
                     )
                 ],
                 "check_number": check_numbers,
@@ -393,15 +401,15 @@ class PlaidTransactions:
                         "payment_processor": payment_processor,
                         "reason": reason,
                     }
-                    for reference_number, ppd_id, payee, by_order_of, payer, payment_method, payment_processor, reason in zip(
-                        reference_numbers,
-                        ppd_ids,
-                        payees,
-                        by_order_ofs,
-                        payers,
-                        payment_methods,
-                        payment_processors,
-                        reasons,
+                    for reference_number, ppd_id, by_order_of, payee, payer, payment_method, payment_processor, reason in zip(
+                        pd.Series(reference_numbers, dtype="str"),
+                        pd.Series(ppd_ids, dtype="str"),
+                        pd.Series(by_order_ofs, dtype="str"),
+                        pd.Series(payees, dtype="str"),
+                        pd.Series(payers, dtype="str"),
+                        pd.Series(payment_methods, dtype="str"),
+                        pd.Series(payment_processors, dtype="str"),
+                        pd.Series(reasons, dtype="str"),
                     )
                 ],
                 "transaction_code": transaction_codes,

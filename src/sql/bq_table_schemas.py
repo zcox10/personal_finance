@@ -769,7 +769,7 @@ class BqTableSchemas:
                             },
                             {
                                 "name": "expiration_date",
-                                "type": "STRING",
+                                "type": "DATE",
                                 "mode": "NULLABLE",
                                 "description": "",
                             },

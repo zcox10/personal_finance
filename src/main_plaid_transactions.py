@@ -7,18 +7,22 @@ from utils.plaid_transactions import PlaidTransactions
 
 # constants
 PLAID_CLIENT_ID = "65975384ab670e001c0aaf0d"
-# PLAID_SECRET="56e33c77237c8c9e45f5c066b8b2fa" #production
-PLAID_SECRET = "9294dd5ca4a5c99d90da56640f40e5"  # sandbox
-PLAID_HOST = plaid.Environment.Sandbox
+# PLAID_SECRET = "56e33c77237c8c9e45f5c066b8b2fa"  # production
+# PLAID_SECRET = "9294dd5ca4a5c99d90da56640f40e5"  # sandbox
+PLAID_SECRET = "c5c55de38434db3e6456d0e146db8b"  # dev
+PLAID_HOST = plaid.Environment.Development
+# PLAID_ACCESS_TOKENS = [
+#     "access-development-a00c51da-ea66-459a-9d70-aa8e7cde48db",  # Chase
+#     "access-development-36b11b1f-7e28-41b7-bff1-713683d6d180",  # BoA
+#     "access-development-71716c32-af8e-4632-8805-dc26872a0187",  # Schwab
+#     "access-development-07939f94-059d-45d0-a338-65222b5ea656",  # Vanguard
+#     "access-development-d73b7fc4-f2ee-4a52-9d80-a06f203a2009",  # Fundrise
+#     "access-development-b34d5d0a-eca4-4fa8-8b27-e8bf8ef37dc6",  # e-Trade
+# ]
 # PLAID_ENV = "sandbox"
 # PLAID_PRODUCTS = ["liabilities", "transactions", "investments"]
 # PLAID_COUNTRY_CODES = ["US"]
 # PLAID_REDIRECT_URI="https://localhost:3000/"
-# PLAID_ACCESS_TOKENS = [
-#     "access-sandbox-1902b6d6-33f3-49b8-a3ce-3213a5fe9a49",
-#     "access-sandbox-12481aea-33b6-4101-9f49-4e07ebbc1431",
-#     "access-sandbox-f415798a-74af-4e7f-b504-dc075dc5889c",
-# ]
 
 # initialize clients
 bq_client = bigquery.Client()
@@ -61,11 +65,14 @@ for i, row in latest_cursors_df.iterrows():
         add_test_transaction=add_test_transaction,
     )
 
-    transactions_df_list.append(transactions_df)
-    removed_df_list.append(removed_df)
+    if transactions_df is not None:
+        transactions_df_list.append(transactions_df)
+
+    if removed_df is not None:
+        removed_df_list.append(removed_df)
 
 # only upload transactions_df to BQ if there is at least one non-null df
-if not all(df is None for df in transactions_df_list):
+if len(transactions_df_list) > 0:
     concat_transactions_df = pd.concat(transactions_df_list)
     plaid_transactions.create_empty_transactions_bq_table(offset_days=offset_days, write_disposition=write_disposition)
     print("SLEEP 5 SECONDS TO WAIT FOR plaid_transactions_YYYYMMDD creation\n")
@@ -76,7 +83,7 @@ else:
     print("No transactions present in concat_transactions_df")
 
 # only upload removed_df to BQ if there is at least one non-null df
-if not all(df is None for df in removed_df_list):
+if len(removed_df_list) > 0:
     concat_removed_df = pd.concat(removed_df_list)
     plaid_transactions.create_empty_removed_bq_table(offset_days=offset_days, write_disposition=write_disposition)
     print("SLEEP 5 SECONDS TO WAIT FOR plaid_removed_transactions_YYYYMMDD creation\n")

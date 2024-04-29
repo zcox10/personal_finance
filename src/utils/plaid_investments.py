@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from sql.bq_table_schemas import BqTableSchemas
 from utils.bq_utils import BqUtils
 
@@ -58,18 +59,18 @@ class PlaidInvestments:
 
         holdings_df = pd.DataFrame(
             {
-                "item_id": item_ids,
-                "account_id": account_ids,
-                "cost_basis": cost_basis,
-                "institution_price": institution_prices,
-                "institution_price_date": institution_price_dates,
-                "institution_price_datetime": institution_price_datetimes,
-                "institution_value": institution_values,
-                "currency_code": currency_codes,
-                "unofficial_currency_code": unofficial_currency_codes,
-                "quantity": quantities,
-                "vested_quantity": vested_quantities,
-                "vested_value": vested_values,
+                "item_id": pd.Series(item_ids, dtype="str"),
+                "account_id": pd.Series(account_ids, dtype="str"),
+                "cost_basis": pd.Series(cost_basis, dtype="float64"),
+                "institution_price": pd.Series(institution_prices, dtype="float64"),
+                "institution_price_date": pd.Series(institution_price_dates, dtype="datetime64[ns]"),
+                "institution_price_datetime": pd.Series(institution_price_datetimes, dtype="datetime64[ns]"),
+                "institution_value": pd.Series(institution_values, dtype="float64"),
+                "currency_code": pd.Series(currency_codes, dtype="str"),
+                "unofficial_currency_code": pd.Series(unofficial_currency_codes, dtype="str"),
+                "quantity": pd.Series(quantities, dtype="float64"),
+                "vested_quantity": pd.Series(vested_quantities, dtype="float64"),
+                "vested_value": pd.Series(vested_values, dtype="float64"),
                 "security": securities_data,
             }
         )
@@ -114,19 +115,19 @@ class PlaidInvestments:
 
         investment_transactions_df = pd.DataFrame(
             {
-                "item_id": item_ids,
-                "account_id": account_ids,
-                "investment_transaction_id": investment_transaction_ids,
-                "date": dates,
-                "name": names,
-                "quantity": quantities,
-                "amount": amounts,
-                "price": prices,
-                "fees": fees,
-                "type": pd.Series(types, dtype="str"),  # ensure cast to str
+                "item_id": pd.Series(item_ids, dtype="str"),
+                "account_id": pd.Series(account_ids, dtype="str"),
+                "investment_transaction_id": pd.Series(investment_transaction_ids, dtype="str"),
+                "date": pd.Series(dates, dtype="datetime64[ns]"),
+                "name": pd.Series(names, dtype="str"),
+                "quantity": pd.Series(quantities, dtype="float64"),
+                "amount": pd.Series(amounts, dtype="float64"),
+                "price": pd.Series(prices, dtype="float64"),
+                "fees": pd.Series(fees, dtype="float64"),
+                "type": pd.Series(types, dtype="str"),
                 "subtype": pd.Series(subtypes, dtype="str"),
-                "currency_code": currency_codes,
-                "unofficial_currency_code": unofficial_currency_codes,
+                "currency_code": pd.Series(currency_codes, dtype="str"),
+                "unofficial_currency_code": pd.Series(unofficial_currency_codes, dtype="str"),
                 "security": securities_data,
             }
         )
@@ -174,9 +175,39 @@ class PlaidInvestments:
             }
 
         for security_id in security_ids:
-            securities_data.append(securities_dict[security_id])
+            if security_id is None:
+                securities_data.append(self.__empty_securities_dict())
+            else:
+                securities_data.append(securities_dict[security_id])
 
         return securities_data
+
+    def __empty_securities_dict(self):
+        return {
+            "security_id": None,
+            "currency_code": None,
+            "unofficial_currency_code": None,
+            "close_price": None,
+            "close_price_date": None,
+            "update_datetime": None,
+            "cusip": None,
+            "institution_id": None,
+            "institution_security_id": None,
+            "is_cash_equivalent": None,
+            "isin": None,
+            "market_identifier_code": None,
+            "name": None,
+            "option_contract": {
+                "contract_type": None,
+                "expiration_date": None,
+                "strike_price": None,
+                "underlying_security_ticker": None,
+            },
+            "proxy_security_id": None,
+            "sedol": None,
+            "ticker_symbol": None,
+            "type": None,
+        }
 
     def create_empty_investment_transactions_bq_table(self, offset_days, write_disposition):
         """
