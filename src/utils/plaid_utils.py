@@ -6,7 +6,6 @@ from sql.bq_table_schemas import BqTableSchemas
 from plaid.exceptions import ApiException
 from plaid.configuration import Configuration
 from plaid.api_client import ApiClient
-from plaid.exceptions import ApiException
 from plaid.api import plaid_api
 from plaid.model.country_code import CountryCode
 from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
@@ -15,6 +14,8 @@ from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.investments_holdings_get_request import InvestmentsHoldingsGetRequest
 from plaid.model.investments_transactions_get_request import InvestmentsTransactionsGetRequest
 from plaid.model.investments_transactions_get_request_options import InvestmentsTransactionsGetRequestOptions
+from plaid.model.item_remove_request import ItemRemoveRequest
+from plaid.model.link_token_transactions import LinkTokenTransactions
 
 
 class PlaidUtils:
@@ -133,6 +134,15 @@ class PlaidUtils:
         """
 
         return self.__bq.query(query)
+
+    def remove_item(self, access_token):
+        try:
+            request = ItemRemoveRequest(access_token=access_token)
+            response = self.plaid_client.item_remove(request)
+            return response
+
+        except ApiException as e:
+            return json.loads(e.body)
 
     def get_transactions_data(self, access_token, next_cursor, add_test_transaction):
         """
