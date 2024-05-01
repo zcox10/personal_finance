@@ -1,4 +1,6 @@
 import json
+import time
+import sys
 from datetime import timedelta, datetime as dt, timezone
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
@@ -111,7 +113,7 @@ class BqUtils:
         For example, if "test_table_YYYYMMDD" is input, it retrieves all "test_table_" prefix tables
 
         Args:
-            dataset_id (str): ID of the project containing the tables.
+            project_id (str): ID of the project containing the tables.
             dataset_id (str): ID of the dataset containing the tables.
             table_id (str): Table id {table_id}_YYYYMMDD format used to filter tables.
 
@@ -185,6 +187,45 @@ class BqUtils:
         table_id = full_table_name.split(".")[2]
         return table_id
 
+    def update_single_table_partition(self, table_id, offset_days):
+        """
+        Update the partition of a single table based on the offset in days.
+
+        Args:
+            table_id (str): The ID of the table to update
+            offset_days (int): The offset to be applied to a given partition date
+
+        Returns:
+            str: The updated table ID with the new partition.
+        """
+
+        partition_date = self.get_partition_date(offset_days=offset_days)
+        table_prefix = self.replace_table_suffix(table_id)
+        table_id = table_prefix + partition_date
+        return table_id
+
+    def update_many_table_partitions(self, table_list, offset_days):
+        """
+        Update the partitions of multiple tables in the list based on the offset in days.
+
+        Args:
+            table_list (List[str]): List of table IDs to update
+            offset_days (int): The offset to be applied to a given partition date
+
+        Returns:
+            List[str]: List of updated table IDs with the new partitions
+        """
+
+        updated_tables = []
+        for table in table_list:
+            table_split = table.split(".")
+
+            if self.partition_format(table_split[2]) is not None:
+                table_split[2] = self.update_single_table_partition(table_split[2], offset_days)
+
+            updated_tables.append(table_split)
+        return updated_tables
+
     def update_table_schema_latest_partition(self, schema):
         """
         Updates a table's schema provided via BqTableSchemas with the "table_id" value representing the latest partition.
@@ -211,17 +252,14 @@ class BqUtils:
 
         Args:
             schema (dict): the schema represented in BqTableSchemas.
-            offset_days (int): the offset for the new partition depending on the current date.
+            offset_days (int): The offset to be applied to a given partition date
 
         Returns:
             schema (dict): The updated table schema for the "table_id" value representing the latest partition
         """
-
-        partition_date = self.get_partition_date(offset_days=offset_days)
-        table_prefix = self.replace_table_suffix(schema["table_id"])
-        table_id = table_prefix + partition_date
-
-        schema["table_id"] = table_id
+        # replace {table_name}_YYYYMMDD with specific partition e.g. {table_name}_20240401
+        new_table_id = self.update_table_partition(schema["table_id"], offset_days)
+        schema["table_id"] = new_table_id
         schema["full_table_name"] = schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
         return schema
 
@@ -252,6 +290,47 @@ class BqUtils:
                 return False  # Table does not exist
             else:
                 raise  # Other exception occurred, propagate it
+
+    def check_dependencies(self, table_list, offset_days):
+        """
+        Check the dependencies of BigQuery tables.
+
+        Args:
+            table_list (List[str]): List of table IDs to check.
+            offset_days (int): The offset to be applied to a given partition date
+
+        Returns:
+            None
+        """
+
+        print("Checking BQ table dependencies...")
+
+        # update table names from {table_name}_YYYYMMDD to specific table name based on "offset_days" e.g. {table_name}_20240401
+        updated_tables = self.update_many_table_partitions(table_list, offset_days)
+
+        all_tables_exist = False
+        count = 0
+        while not all_tables_exist:
+            table_statuses = []
+            for table in updated_tables:
+                table_status = self.does_bq_table_exist(table[0], table[1], table[2])
+                table_statuses.append(table_status)
+                if not table_status:
+                    print(f"`{self.concat_table_name(table[0], table[1], table[2])}` does not exist yet!")
+
+            # mark True if all tables exist, else False
+            all_tables_exist = all(table_statuses)
+
+            # continue until all tables exist
+            if not all_tables_exist:
+                count += 1
+                print("Not all tables exist yet. Sleeping 30 seconds.\n")
+                time.sleep(30)
+            else:
+                print("BQ table dependencies passed!\n")
+
+            if count >= 10:
+                sys.exit("Checked table dependencies 10 times, exiting.")
 
     def load_df_to_bq(self, df, full_table_name, write_disposition):
         """
@@ -307,12 +386,12 @@ class BqUtils:
         Copies data from a source BigQuery table to a destination BigQuery table.
 
         Args:
-        - source_table (str): The fully qualified name (project.dataset.table) of the source table.
-        - destination_table (str): The fully qualified name (project.dataset.table) of the destination table.
-        - write_disposition (str): The write disposition for the copy job. Possible values are "WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY".
+            source_table (str): The fully qualified name (project.dataset.table) of the source table.
+            destination_table (str): The fully qualified name (project.dataset.table) of the destination table.
+            write_disposition (str): The write disposition for the copy job. Possible values are "WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY".
 
         Returns:
-        - None: This function does not return anything. Prints a success message upon completion.
+            None: This function does not return anything. Prints a success message upon completion.
         """
 
         # Job configuration to copy the table
@@ -333,6 +412,9 @@ class BqUtils:
             dataset_id (str): ID of the BQ dataset containing the tables.
             table_id (str): ID of the BQ table to check, can include a partition_format suffix e.g. "{table_name}_YYYYMMDD"
             confirm (bool): if tables exists and confirm=True, confirm with Y/N if the table should be deleted
+
+        Returns:
+            None
         """
 
         # get all table_id's that match the table prefix
@@ -367,6 +449,9 @@ class BqUtils:
             dataset_id (str): ID of the BQ dataset containing the tables.
             table_ids (list): A list of table_id's to delete
             confirm (bool): if tables exists and confirm=True, confirm with Y/N if the table should be deleted. This will ask for confirmation to delete every table.
+
+        Returns:
+            None
         """
         for _table in table_ids:
             self.delete_bq_table(project_id, dataset_id, _table, confirm)
@@ -381,8 +466,8 @@ class BqUtils:
 
         Returns:
             bool: True to continue with user action, else False
-
         """
+
         user_input = input(f"{prompt} (Y/N): ").strip().upper()
         if user_input == "Y":
             print("CONTINUE:", action_response, "\n")
@@ -399,6 +484,9 @@ class BqUtils:
             dataset_id (str): ID of the BQ dataset containing the tables.
             table_id (str): ID of the BQ table to check.
             confirm (bool): T/F to confirm if the user should be prompted to deleted the table.
+
+        Returns:
+            None
         """
 
         # concat "{project_id}.{dataset_id}.{table_id}"

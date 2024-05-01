@@ -1,3 +1,4 @@
+import time
 import pandas as pd
 from sql.bq_table_schemas import BqTableSchemas
 from utils.bq_utils import BqUtils
@@ -48,7 +49,7 @@ class PlaidTransactions:
         and associated item IDs, then adds an empty cursor as the next cursor value to start fresh.
 
         Args:
-            offset_days (int): The number of days to offset when determining the partition date for the plaid_cursors_YYYYMMDD table.
+            offset_days (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
@@ -109,8 +110,7 @@ class PlaidTransactions:
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
-            google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
-            data into the created BigQuery table.
+            None
         """
         temp_cursors_bq = self.__bq_tables.temp_plaid_cursors()
 
@@ -129,7 +129,7 @@ class PlaidTransactions:
         Copies data from a temporary Plaid cursors table to a permanent Plaid cursors table in BigQuery.
 
         Args:
-            offset_days (int): The number of days to offset when determining the partition date for the destination table.
+            offset_days (int): The offset to be applied to a given partition date
             write_disposition (str): The write disposition for the copy job. Possible values are "WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY".
 
         Returns:
@@ -172,27 +172,28 @@ class PlaidTransactions:
             pandas.DataFrame: A DataFrame containing removed transaction_id's
         """
 
-        # item_id and date_removed (partition_date) are singular values, create lists to match the number of removed transactions
-        if len(removed_transactions) > 0:
-            item_ids = [item_id] * len(removed_transactions)
-            dates_removed = [partition_date] * len(removed_transactions)
-
-            # add data to removed_df
-            removed_df = pd.DataFrame(
-                {
-                    "item_id": pd.Series(item_ids, dtype="str"),
-                    "account_id": pd.Series(removed_accounts, dtype="str"),
-                    "transaction_id": pd.Series(removed_transactions, dtype="str"),
-                    "date_removed": pd.Series(dates_removed, dtype="datetime64[ns]"),
-                }
-            )
-
-            # remove any duplicates, if any
-            removed_df.drop_duplicates(inplace=True)
-
-            return removed_df
-        else:
+        # only create df if there are removed transactions
+        if len(removed_transactions) == 0:
             return None
+
+        # item_id and date_removed (partition_date) are singular values, create lists to match the number of removed transactions
+        item_ids = [item_id] * len(removed_transactions)
+        dates_removed = [partition_date] * len(removed_transactions)
+
+        # add data to removed_df
+        removed_df = pd.DataFrame(
+            {
+                "item_id": pd.Series(item_ids, dtype="str"),
+                "account_id": pd.Series(removed_accounts, dtype="str"),
+                "transaction_id": pd.Series(removed_transactions, dtype="str"),
+                "date_removed": pd.Series(dates_removed, dtype="datetime64[ns]"),
+            }
+        )
+
+        # remove any duplicates, if any
+        removed_df.drop_duplicates(inplace=True)
+
+        return removed_df
 
     def __create_transactions_df(self, transactions, item_id, status_type):
         """
@@ -200,11 +201,16 @@ class PlaidTransactions:
 
         Args:
             transactions (dict): A dictionary containing transaction information.
+            item_id (str): The item originating from Plaid
             status_type (str): The status type to be assigned to all transactions.
 
         Returns:
             pandas.DataFrame: A DataFrame containing transaction data
         """
+        # only create transactions df if data exists
+        if len(transactions) == 0:
+            return None
+
         account_ids = []
         account_owners = []
         amounts = []
@@ -336,8 +342,8 @@ class PlaidTransactions:
                 "is_pending": pd.Series(pendings, dtype="bool"),
                 "account_owner": pd.Series(account_owners, dtype="str"),
                 "status": pd.Series(statuses, dtype="str"),
-                "date": pd.Series(dates, dtype="datetime64[ns]"),
-                "datetime": pd.to_datetime(datetimes).tz_localize(None),
+                "transaction_date": pd.Series(dates, dtype="datetime64[ns]"),
+                "transaction_datetime": pd.to_datetime(datetimes).tz_localize(None),
                 "authorized_date": pd.Series(authorized_dates, dtype="datetime64[ns]"),
                 "authorized_datetime": pd.to_datetime(authorized_datetimes).tz_localize(None),
                 "amount": pd.Series(amounts, dtype="float64"),
@@ -427,7 +433,7 @@ class PlaidTransactions:
         Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
 
         Args:
-            offset_days (int): The number of days to offset when determining the partition date for the table.
+            offset_days (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
@@ -453,7 +459,7 @@ class PlaidTransactions:
         Creates an empty plaid_removed_transactions_YYYYMMDD table in BQ for a specific partition date.
 
         Args:
-            offset_days (int): The number of days to offset when determining the partition date for the table.
+            offset_days (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
@@ -481,6 +487,7 @@ class PlaidTransactions:
 
         Args:
             transactions_df (pandas.DataFrame): the dataframe containing all plaid transactions
+            offset_days (int): The offset to be applied to a given partition date
 
         Returns:
             google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
@@ -496,12 +503,39 @@ class PlaidTransactions:
         # upload df to plaid_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(transactions_df, plaid_transactions_bq["full_table_name"], "WRITE_APPEND")
 
+    def upload_transactions_df_list_to_bq(self, transactions_df_list, offset_days, write_disposition):
+        """
+        Upload a list of transactions DataFrames to BigQuery.
+
+        Args:
+            transactions_df_list (List[pandas.DataFrame]): List of DataFrames containing transactions data.
+            offset_days (int): The offset to be applied to a given partition date
+            write_disposition (str): Write disposition for BigQuery ("WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY").
+
+        Returns:
+            None
+        """
+
+        # only upload transactions_df to BQ if there is at least one non-null df
+        if len(transactions_df_list) > 0:
+            concat_transactions_df = pd.concat(transactions_df_list)
+            self.create_empty_transactions_bq_table(offset_days, write_disposition)
+
+            print("SLEEP 5 SECONDS TO WAIT FOR plaid_transactions_YYYYMMDD creation\n")
+            time.sleep(5)
+
+            self.upload_transactions_df_to_bq(concat_transactions_df, offset_days)
+
+        else:
+            print("No transactions present in concat_transactions_df")
+
     def upload_removed_df_to_bq(self, removed_df, offset_days):
         """
         Upload the removed_df to a pre-existing plaid_removed_transactions_YYYYMMDD BQ table
 
         Args:
             removed_df (pandas.DataFrame): the dataframe containing all plaid removed transactions
+            offset_days (int): The offset to be applied to a given partition date
 
         Returns:
             google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
@@ -517,24 +551,72 @@ class PlaidTransactions:
         # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(removed_df, plaid_removed_bq["full_table_name"], "WRITE_APPEND")
 
+    def upload_removed_df_list_to_bq(self, removed_df_list, offset_days, write_disposition):
+        """
+        Upload a list of removed transactions DataFrames to BigQuery.
+
+        Args:
+            removed_df_list (List[pandas.DataFrame]): List of DataFrames containing removed transactions data.
+            offset_days (int): The offset to be applied to a given partition date
+            write_disposition (str): Write disposition for BigQuery ("WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY").
+
+        Returns:
+            None
+        """
+        # only upload removed_df to BQ if there is at least one non-null df
+        if len(removed_df_list) > 0:
+            concat_removed_df = pd.concat(removed_df_list)
+            self.create_empty_removed_bq_table(offset_days, write_disposition)
+
+            print("SLEEP 5 SECONDS TO WAIT FOR plaid_removed_transactions_YYYYMMDD creation\n")
+            time.sleep(5)
+
+            self.upload_removed_df_to_bq(concat_removed_df, offset_days)
+
+        else:
+            print("No removed transactions present in concat_removed_df")
+
     def generate_transactions_dfs(self, access_token, item_id, next_cursor, offset_days, add_test_transaction):
+        """
+        Generate transactions_df and removed_df from Plaid API data.
+
+        Args:
+            access_token (str): Plaid access token.
+            item_id (str): Plaid item ID.
+            next_cursor (str): Next cursor for pagination.
+            offset_days (int): The offset to be applied to a given partition date.
+            add_test_transaction (bool): Whether to add test transactions.
+
+        Returns:
+            Tuple[pandas.DataFrame, pandas.DataFrame]: A tuple containing transactions DataFrame and removed transactions DataFrame.
+        """
+        # retrieve transactions data from Plaid transactions_sync
         removed_transactions, removed_accounts, transactions_json, latest_cursor = (
             self.__plaid_client.get_transactions_data(access_token, next_cursor, add_test_transaction)
         )
 
+        # append added_df and modified_df to transactions_df_list.
         transactions_df_list = []
-        transactions_df_list.append(self.__create_transactions_df(transactions_json["added"], item_id, "ADDED"))
-        transactions_df_list.append(self.__create_transactions_df(transactions_json["modified"], item_id, "MODIFIED"))
+        added_df = self.__create_transactions_df(transactions_json["added"], item_id, "ADDED")
+        modified_df = self.__create_transactions_df(transactions_json["modified"], item_id, "MODIFIED")
 
-        # create a final removed_df to store removed transactions
+        # Only add to transactions_df_list if data is present
+        if added_df is not None:
+            transactions_df_list.append(added_df)
+
+        if modified_df is not None:
+            transactions_df_list.append(modified_df)
+
+        # create a final removed_df to store removed transactions. Returns None if no data available
         partition_date = self.__bq.get_date(offset_days=offset_days)
         removed_df = self.__create_removed_df(item_id, removed_transactions, removed_accounts, partition_date)
 
-        # concat all transactions to main df
-        if len(transactions_df_list) > 0:
-            transactions_df = pd.concat(transactions_df_list)
-        else:  # return empty df
+        # return if there is no data available
+        if len(transactions_df_list) == 0:
             return None, removed_df
+
+        # concat all transactions to main df
+        transactions_df = pd.concat(transactions_df_list)
 
         # add next cursor back to next_cursor table
         temp_plaid_cursors_bq = self.__bq_tables.temp_plaid_cursors()
@@ -550,3 +632,36 @@ class PlaidTransactions:
         print(f"SUCCESS: retrieved transactions for item_id: {item_id}")
 
         return transactions_df, removed_df
+
+    def generate_transactions_df_list(self, latest_cursors_df, offset_days, add_test_transaction):
+        """
+        Generate a list of transactions DataFrames from Plaid API data.
+
+        Args:
+            latest_cursors_df (pandas.DataFrame): DataFrame containing the latest cursors for each item.
+            offset_days (int): Number of days to offset in the table name.
+            add_test_transaction (bool): Whether to add test transactions.
+
+        Returns:
+            Tuple[List[pandas.DataFrame], List[pandas.DataFrame]]: A tuple containing a list of transactions DataFrames and a list of removed transactions DataFrames.
+        """
+
+        transactions_df_list = []
+        removed_df_list = []
+        for i, row in latest_cursors_df.iterrows():
+
+            transactions_df, removed_df = self.generate_transactions_dfs(
+                access_token=row["access_token"],
+                item_id=row["item_id"],
+                next_cursor=row["next_cursor"],
+                offset_days=offset_days,
+                add_test_transaction=add_test_transaction,
+            )
+
+            if transactions_df is not None:
+                transactions_df_list.append(transactions_df)
+
+            if removed_df is not None:
+                removed_df_list.append(removed_df)
+
+        return transactions_df_list, removed_df_list

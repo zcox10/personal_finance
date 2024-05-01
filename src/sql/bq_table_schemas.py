@@ -281,13 +281,13 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "date",
+                "name": "transaction_date",
                 "type": "DATE",
                 "mode": "NULLABLE",
                 "description": "",
             },
             {
-                "name": "datetime",
+                "name": "transaction_datetime",
                 "type": "DATETIME",
                 "mode": "NULLABLE",
                 "description": "",
@@ -852,13 +852,13 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "date",
+                "name": "investment_date",
                 "type": "DATE",
                 "mode": "NULLABLE",
                 "description": "",
             },
             {
-                "name": "name",
+                "name": "investment_name",
                 "type": "STRING",
                 "mode": "NULLABLE",
                 "description": "",
@@ -888,13 +888,13 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "type",
+                "name": "investment_type",
                 "type": "STRING",
                 "mode": "NULLABLE",
                 "description": "",
             },
             {
-                "name": "subtype",
+                "name": "investment_subtype",
                 "type": "STRING",
                 "mode": "NULLABLE",
                 "description": "",
@@ -989,7 +989,7 @@ class BqTableSchemas:
                         "description": "",
                     },
                     {
-                        "name": "name",
+                        "name": "investment_name",
                         "type": "STRING",
                         "mode": "NULLABLE",
                         "description": "",

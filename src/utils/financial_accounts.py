@@ -13,7 +13,21 @@ class FinancialAccounts:
         self.__bq_tables = BqTableSchemas()
 
     def __create_plaid_accounts_df(self, access_token, plaid_country_codes):
+        """
+        Create a DataFrame containing Plaid financial account information.
+
+        Args:
+            access_token (str): The Plaid access token.
+            plaid_country_codes (List[str]): List of country codes used for Plaid API requests.
+
+        Returns:
+            pandas.DataFrame: DataFrame containing financial account data
+        """
         responses = self.__plaid_client.get_accounts(access_token)
+
+        # only continue if data is present
+        if len(responses["accounts"]) == 0:
+            return None
 
         item_ids = []
         persistent_account_ids = []
@@ -107,6 +121,17 @@ class FinancialAccounts:
         return accounts_df
 
     def __check_account_duplicates(self, full_table_name, accounts_df):
+        """
+        Check for duplicate accounts in the financial_accounts table.
+
+        Args:
+            full_table_name (str): The full name of the table in BigQuery.
+            accounts_df (pandas.DataFrame): DataFrame containing account information.
+
+        Returns:
+            bool: True if there are no duplicates or the user decides to continue despite duplicates, False otherwise.
+        """
+
         # determine if there are duplicate accounts in financial_accounts table
         try:
             # store persistent_account_id and account_id in get_accounts_df
@@ -174,6 +199,7 @@ class FinancialAccounts:
         Args:
             access_token (str): Plaid access token.
             plaid_country_codes (list): Plaid country codes in list form.
+            offset_days (int): The offset to be applied to a given partition date
 
         Returns:
             None
@@ -189,10 +215,14 @@ class FinancialAccounts:
 
             # (bool): if true, there are no duplicates and continue OR there are duplicates but chose to continue anyways
             decision = self.__check_account_duplicates(financial_accounts_bq["full_table_name"], accounts_df)
-            if decision:
+            if decision and accounts_df is not None:
                 # Load the record to cursors temp BQ table. "WRITE_APPEND" because there are multiple individual uploads
                 self.__bq.load_df_to_bq(accounts_df, financial_accounts_bq["full_table_name"], "WRITE_APPEND")
                 time.sleep(3)
+            elif not decision:
+                print("There are account duplicates present. Decided not to upload account data to BQ\n")
+            else:
+                print("There is no account data available in accounts_df. Did not upload to BQ\n")
 
         print(f"SUCCESS: all access tokens added to `{financial_accounts_bq['full_table_name']}`\n")
 
@@ -201,7 +231,7 @@ class FinancialAccounts:
         Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
 
         Args:
-            offset_days (int): The number of days to offset when determining the partition date for the table.
+            offset_days (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
