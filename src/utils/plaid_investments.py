@@ -392,7 +392,7 @@ class PlaidInvestments:
 
         # only upload investment_transactions_df to BQ if there is at least one non-null df
         if len(investment_transactions_df_list) == 0:
-            print("No investment transactions present in concat_investment_holdings_df\n")
+            print("No investment transactions present\n")
         else:
             concat_investment_transactions_df = pd.concat(investment_transactions_df_list)
 
@@ -439,7 +439,7 @@ class PlaidInvestments:
 
         # only upload holdings_df to BQ if there is at least one non-null df
         if len(holdings_df_list) == 0:
-            print("No investment holdings present in concat_investment_holdings_df\n")
+            print("No investment holdings present\n")
         else:
             concat_holdings_df = pd.concat(holdings_df_list)
 
