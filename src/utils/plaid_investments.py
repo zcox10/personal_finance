@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import time
 from sql.bq_table_schemas import BqTableSchemas
 from utils.bq_utils import BqUtils
 
@@ -11,6 +12,20 @@ class PlaidInvestments:
         self.__bq_tables = BqTableSchemas()
 
     def generate_investments_dfs(self, start_date, end_date, access_token):
+        """
+        Generate DataFrames for investment holdings and transactions.
+
+        Args:
+            start_date (str): The start date for investment transactions data.
+            end_date (str): The end date for investment transactions data.
+            access_token (str): The Plaid access token.
+
+        Returns:
+            tuple: A tuple containing two DataFrames:
+                - holdings_df (pandas.DataFrame): DataFrame containing investment holdings data.
+                - investment_transactions_df (pandas.DataFrame): DataFrame containing investment transactions data.
+        """
+
         investments_holdings_json = self.__plaid_client.get_investment_holdings_data(access_token)
         holdings_df = self.__create_holdings_df(investments_holdings_json)
 
@@ -24,7 +39,48 @@ class PlaidInvestments:
 
         return holdings_df, investment_transactions_df
 
+    def generate_investments_dfs_list(self, start_date, end_date, access_tokens):
+        """
+        Generate lists of DataFrames for investment holdings and transactions for multiple access tokens.
+
+        Args:
+            start_date (str): The start date for investment transactions data.
+            end_date (str): The end date for investment transactions data.
+            access_tokens (List[str]): List of Plaid access tokens.
+
+        Returns:
+            tuple: A tuple containing two lists of DataFrames:
+                - holdings_df_list (List[pandas.DataFrame]): List of DataFrames containing investment holdings data.
+                - investment_transactions_df_list (List[pandas.DataFrame]): List of DataFrames containing investment transactions data.
+        """
+
+        holdings_df_list = []
+        investment_transactions_df_list = []
+        for token in access_tokens:
+            holdings_df, investment_transactions_df = self.generate_investments_dfs(start_date, end_date, token)
+
+            if holdings_df is not None:
+                holdings_df_list.append(holdings_df)
+
+            if investment_transactions_df is not None:
+                investment_transactions_df_list.append(investment_transactions_df)
+
+        return holdings_df_list, investment_transactions_df_list
+
     def __create_holdings_df(self, investments_json):
+        """
+        Create a DataFrame containing investment holdings data.
+
+        Args:
+            investments_json (dict): JSON data containing investment holdings information.
+
+        Returns:
+            pandas.DataFrame: DataFrame containing the following columns:
+        """
+        # return None if there is no data available
+        if len(investments_json["holdings"]) == 0:
+            return None
+
         # holdings
         item_ids = []
         account_ids = []
@@ -77,6 +133,22 @@ class PlaidInvestments:
         return holdings_df
 
     def __create_investment_transactions_df(self, investments_json, securities_json, item_id):
+        """
+        Create a DataFrame containing investment transactions data.
+
+        Args:
+            investments_json (dict): JSON data containing investment transactions information.
+            securities_json (dict): JSON data containing securities information.
+            item_id (str): The Plaid item ID.
+
+        Returns:
+            pandas.DataFrame: DataFrame containing the following columns:
+        """
+
+        # return None if there is no data available
+        if len(investments_json["investment_transactions"]) == 0:
+            return None
+
         # holdings
         item_ids = []
         account_ids = []
@@ -118,14 +190,14 @@ class PlaidInvestments:
                 "item_id": pd.Series(item_ids, dtype="str"),
                 "account_id": pd.Series(account_ids, dtype="str"),
                 "investment_transaction_id": pd.Series(investment_transaction_ids, dtype="str"),
-                "date": pd.Series(dates, dtype="datetime64[ns]"),
-                "name": pd.Series(names, dtype="str"),
+                "investment_date": pd.Series(dates, dtype="datetime64[ns]"),
+                "investment_name": pd.Series(names, dtype="str"),
                 "quantity": pd.Series(quantities, dtype="float64"),
                 "amount": pd.Series(amounts, dtype="float64"),
                 "price": pd.Series(prices, dtype="float64"),
                 "fees": pd.Series(fees, dtype="float64"),
-                "type": pd.Series(types, dtype="str"),
-                "subtype": pd.Series(subtypes, dtype="str"),
+                "investment_type": pd.Series(types, dtype="str"),
+                "investment_subtype": pd.Series(subtypes, dtype="str"),
                 "currency_code": pd.Series(currency_codes, dtype="str"),
                 "unofficial_currency_code": pd.Series(unofficial_currency_codes, dtype="str"),
                 "security": securities_data,
@@ -134,9 +206,19 @@ class PlaidInvestments:
         return investment_transactions_df
 
     def __create_securities_dict(self, securities_json, security_ids):
-        securities_dict = {}
-        securities_data = []
+        """
+        Create a dictionary containing securities information.
 
+        Args:
+            securities_json (dict): JSON data containing securities information.
+            security_ids (List[str]): List of security IDs to include in the dictionary.
+
+        Returns:
+            List[dict]: List of dictionaries containing securities data.
+        """
+
+        # generate individual securities dict's, then store them in securities_data list
+        securities_dict = {}
         for j in securities_json:
             if j["option_contract"] is None:
                 option_contract = {
@@ -174,6 +256,8 @@ class PlaidInvestments:
                 "type": j["type"],
             }
 
+        # final securities_data list to return for insertion to df
+        securities_data = []
         for security_id in security_ids:
             if security_id is None:
                 securities_data.append(self.__empty_securities_dict())
@@ -183,6 +267,12 @@ class PlaidInvestments:
         return securities_data
 
     def __empty_securities_dict(self):
+        """
+        Create an empty dictionary representing securities data.
+
+        Returns:
+            dict: An empty dictionary with keys corresponding to securities data fields.
+        """
         return {
             "security_id": None,
             "currency_code": None,
@@ -214,7 +304,7 @@ class PlaidInvestments:
         Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
 
         Args:
-            offset_days (int): The number of days to offset when determining the partition date for the table.
+            offset_days (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
@@ -240,7 +330,7 @@ class PlaidInvestments:
         Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
 
         Args:
-            offset_days (int): The number of days to offset when determining the partition date for the table.
+            offset_days (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
@@ -266,7 +356,8 @@ class PlaidInvestments:
         Upload the transactions_df to a pre-existing plaid_transactions_YYYYMMDD BQ table
 
         Args:
-            transactions_df (pandas.DataFrame): the dataframe containing all plaid transactions
+            investment_transactions_df (pandas.DataFrame): the dataframe containing all plaid transactions
+            offset_days (int): The offset to be applied to a given partition date
 
         Returns:
             google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
@@ -284,12 +375,40 @@ class PlaidInvestments:
             investment_transactions_df, plaid_investment_transactions_bq["full_table_name"], "WRITE_APPEND"
         )
 
-    def upload_investment_holdings_df_to_bq(self, holdings_df, offset_days):
+    def upload_investment_transactions_df_list_to_bq(
+        self, investment_transactions_df_list, offset_days, write_disposition
+    ):
         """
-        Upload the removed_df to a pre-existing plaid_removed_transactions_YYYYMMDD BQ table
+        Upload a list of investment transactions DataFrames to BigQuery.
 
         Args:
-            removed_df (pandas.DataFrame): the dataframe containing all plaid removed transactions
+            investment_transactions_df_list (List[pandas.DataFrame]): List of DataFrames containing investment transactions data.
+            offset_days (int): The offset to be applied to a given partition date
+            write_disposition (str): Write disposition for BigQuery ("WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY").
+
+        Returns:
+            None
+        """
+
+        # only upload investment_transactions_df to BQ if there is at least one non-null df
+        if len(investment_transactions_df_list) == 0:
+            print("No investment transactions present in concat_investment_holdings_df\n")
+        else:
+            concat_investment_transactions_df = pd.concat(investment_transactions_df_list)
+
+            # create empty plaid_investment_transactions_YYYYMMDD to upload transactions to
+            self.create_empty_investment_transactions_bq_table(offset_days, write_disposition)
+            print("SLEEP 5 SECONDS TO WAIT FOR plaid_investment_transactions_YYYYMMDD creation\n")
+            time.sleep(5)
+            self.upload_investment_transactions_df_to_bq(concat_investment_transactions_df, offset_days)
+
+    def upload_investment_holdings_df_to_bq(self, holdings_df, offset_days):
+        """
+        Upload the holdings_df to a pre-existing plaid_investment_holdings_YYYYMMDD BQ table
+
+        Args:
+            holdings_df (pandas.DataFrame): the dataframe containing all plaid removed transactions
+            offset_days (int): The offset to be applied to a given partition date
 
         Returns:
             google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
@@ -304,3 +423,31 @@ class PlaidInvestments:
 
         # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(holdings_df, plaid_investment_holdings_bq["full_table_name"], "WRITE_APPEND")
+
+    def upload_investment_holdings_df_list_to_bq(self, holdings_df_list, offset_days, write_disposition):
+        """
+        Upload a list of investment holdings DataFrames to BigQuery.
+
+        Args:
+            holdings_df_list (List[pandas.DataFrame]): List of DataFrames containing investment holdings data.
+            offset_days (int): The offset to be applied to a given partition date
+            write_disposition (str): Write disposition for BigQuery ("WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY").
+
+        Returns:
+            None
+        """
+
+        # only upload holdings_df to BQ if there is at least one non-null df
+        if len(holdings_df_list) == 0:
+            print("No investment holdings present in concat_investment_holdings_df\n")
+        else:
+            concat_holdings_df = pd.concat(holdings_df_list)
+
+            # create empty plaid_investment_holdings_YYYYMMDD to upload holdings to
+            self.create_empty_investment_holdings_bq_table(offset_days, write_disposition)
+
+            print("SLEEP 5 SECONDS TO WAIT FOR plaid_investment_holdings_YYYYMMDD creation\n")
+            time.sleep(5)
+
+            # upload holdings df to BQ
+            self.upload_investment_holdings_df_to_bq(concat_holdings_df, offset_days)
