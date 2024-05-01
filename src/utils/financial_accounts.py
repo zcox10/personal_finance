@@ -1,4 +1,3 @@
-import json
 import time
 import pandas as pd
 from google.api_core.exceptions import NotFound
