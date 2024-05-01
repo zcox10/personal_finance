@@ -258,7 +258,7 @@ class BqUtils:
             schema (dict): The updated table schema for the "table_id" value representing the latest partition
         """
         # replace {table_name}_YYYYMMDD with specific partition e.g. {table_name}_20240401
-        new_table_id = self.update_table_partition(schema["table_id"], offset_days)
+        new_table_id = self.update_single_table_partition(schema["table_id"], offset_days)
         schema["table_id"] = new_table_id
         schema["full_table_name"] = schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
         return schema
