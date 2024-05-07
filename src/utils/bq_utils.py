@@ -1,6 +1,7 @@
 import json
 import time
 import sys
+import logging
 from datetime import timedelta, datetime as dt, timezone
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
@@ -289,7 +290,7 @@ class BqUtils:
             if "Not found" in str(e):
                 return False  # Table does not exist
             else:
-                raise  # Other exception occurred, propagate it
+                logging.error(str(e))
 
     def check_dependencies(self, table_list, offset_days):
         """
@@ -303,7 +304,7 @@ class BqUtils:
             None
         """
 
-        print("Checking BQ table dependencies...")
+        logging.info("Checking BQ table dependencies...")
 
         # update table names from {table_name}_YYYYMMDD to specific table name based on "offset_days" e.g. {table_name}_20240401
         updated_tables = self.update_many_table_partitions(table_list, offset_days)
@@ -330,7 +331,7 @@ class BqUtils:
                 print("BQ table dependencies passed!\n")
 
             if count >= 10:
-                sys.exit("Checked table dependencies 10 times, exiting.")
+                logging.error(RuntimeError("Checked table dependencies 10 times, exiting."))
 
     def load_df_to_bq(self, df, full_table_name, write_disposition):
         """
@@ -558,7 +559,7 @@ class BqUtils:
             if write_disposition == "WRITE_TRUNCATE":
                 self.delete_bq_table(project_id, dataset_id, table_id, confirm=False)
             else:
-                raise RuntimeError(f"`{self.bq_client.project}.{dataset_id}.{table_id}` already exists")
+                logging.error(RuntimeError(f"`{self.bq_client.project}.{dataset_id}.{table_id}` already exists"))
 
         # Define your BigQuery table
         table = bigquery.Table(

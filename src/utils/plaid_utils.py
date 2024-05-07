@@ -1,7 +1,7 @@
 import json
 from datetime import date
 from utils.bq_utils import BqUtils
-from sql.bq_table_schemas import BqTableSchemas
+from jobs.bq_table_schemas import BqTableSchemas
 
 from plaid.exceptions import ApiException
 from plaid.configuration import Configuration
@@ -15,7 +15,8 @@ from plaid.model.investments_holdings_get_request import InvestmentsHoldingsGetR
 from plaid.model.investments_transactions_get_request import InvestmentsTransactionsGetRequest
 from plaid.model.investments_transactions_get_request_options import InvestmentsTransactionsGetRequestOptions
 from plaid.model.item_remove_request import ItemRemoveRequest
-from plaid.model.link_token_transactions import LinkTokenTransactions
+
+# from plaid.model.link_token_transactions import LinkTokenTransactions
 
 
 class PlaidUtils:

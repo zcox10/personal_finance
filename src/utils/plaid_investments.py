@@ -1,6 +1,6 @@
 import pandas as pd
 import time
-from sql.bq_table_schemas import BqTableSchemas
+from jobs.bq_table_schemas import BqTableSchemas
 from utils.bq_utils import BqUtils
 
 
