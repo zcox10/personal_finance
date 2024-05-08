@@ -125,38 +125,43 @@ class PlaidTransactions:
         )
 
     def copy_temp_cursors_to_cursors_bq_table(self, offset_days, write_disposition):
-        """
-        Copies data from a temporary Plaid cursors table to a permanent Plaid cursors table in BigQuery.
-
-        Args:
-            offset_days (int): The offset to be applied to a given partition date
-            write_disposition (str): The write disposition for the copy job. Possible values are "WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY".
-
-        Returns:
-            None: This function does not return anything. Copies data and prints a success message upon completion.
-        """
 
         # get temp_cursors_bq table
         temp_cursors_bq = self.__bq_tables.temp_plaid_cursors()
 
-        # ensure temp_cursors has data to copy. If no data, print error message to user
-        if self.__bq.bq_table_has_data(
-            temp_cursors_bq["project_id"], temp_cursors_bq["dataset_id"], temp_cursors_bq["table_id"]
-        ):
-            # get BQ schema information
-            plaid_cursors_bq = self.__bq.update_table_schema_partition(
-                schema=self.__bq_tables.plaid_cursors_YYYYMMDD(), offset_days=offset_days
-            )
+        # get plaid_cursors_YYYYMMDD latest partition
+        plaid_cursors_bq_latest = self.__bq.update_table_schema_latest_partition(
+            schema=self.__bq_tables.plaid_cursors_YYYYMMDD()
+        )
 
-            # Copy temp_cursors -> plaid_cursors_YYYYMMDD
-            self.__bq.copy_bq_table(
-                source_table=temp_cursors_bq["full_table_name"],
-                destination_table=plaid_cursors_bq["full_table_name"],
-                write_disposition=write_disposition,
+        query = f"""
+        WITH
+            temp_plaid_cursors AS (
+            SELECT *
+            FROM `{temp_cursors_bq["full_table_name"]}`
             )
-        else:
-            pass
-            print(f"FAILED: `{temp_cursors_bq['full_table_name']}` has no data to copy.")
+            , latest_cursors AS (
+            SELECT p.*
+            FROM `{plaid_cursors_bq_latest["full_table_name"]}` p
+            LEFT JOIN temp_plaid_cursors t
+            USING (access_token, item_id)
+            WHERE t.access_token IS NULL
+            )
+            SELECT *
+            FROM temp_plaid_cursors
+            UNION ALL 
+            SELECT *
+            FROM latest_cursors
+        """
+
+        # get BQ schema information
+        plaid_cursors_bq_new = self.__bq.update_table_schema_partition(
+            schema=self.__bq_tables.plaid_cursors_YYYYMMDD(), offset_days=offset_days
+        )
+
+        self.__bq.create_query_bq_table(
+            query=query, destination_table=plaid_cursors_bq_new["full_table_name"], write_disposition=write_disposition
+        )
 
     def __create_removed_df(self, item_id, removed_transactions, removed_accounts, partition_date):
         """

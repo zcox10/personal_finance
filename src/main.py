@@ -143,17 +143,21 @@ def run_delete_tables(event, context):
         )
 
 
-# def main_test(event, context):
-#     run_financial_accounts("hello", "world")
+def main_test(event, context):
+    run_delete_tables("hello", "world")
 
-#     time.sleep(10)
+    time.sleep(10)
 
-#     run_plaid_investments("hello", "world")
+    run_financial_accounts("hello", "world")
 
-#     time.sleep(10)
+    time.sleep(10)
 
-#     run_plaid_transactions("hello", "world")
+    run_plaid_investments("hello", "world")
+
+    time.sleep(10)
+
+    run_plaid_transactions("hello", "world")
 
 
-# if __name__ == "__main__":
-#     main_test("hello", "world")
+if __name__ == "__main__":
+    main_test("hello", "world")

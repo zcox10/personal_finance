@@ -381,6 +381,7 @@ class BqUtils:
                 return False
         else:
             print(f"`{full_table_name}` does not exist!")
+            return False
 
     def copy_bq_table(self, source_table, destination_table, write_disposition):
         """
