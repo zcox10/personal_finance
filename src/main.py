@@ -28,8 +28,9 @@ BACKFILL = False
 ADD_TEST_TRANSACTIONS = False  # to add a removed transaction or not in generate_transactions_dfs()
 
 # CONSTANTS: plaid investments
-# START_DATE = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
-START_DATE = datetime.now().strftime("%Y-%m-%d")
+START_DATE = (  # if backfill, use 730 days ago as START_DATE. Else, use today
+    (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d") if BACKFILL else datetime.now().strftime("%Y-%m-%d")
+)
 END_DATE = datetime.now().strftime("%Y-%m-%d")
 
 # initialize main clients
@@ -143,21 +144,21 @@ def run_delete_tables(event, context):
         )
 
 
-def main_test(event, context):
-    run_delete_tables("hello", "world")
+# def main_test(event, context):
+#     # run_delete_tables("hello", "world")
 
-    time.sleep(10)
+#     # time.sleep(10)
 
-    run_financial_accounts("hello", "world")
+#     run_financial_accounts("hello", "world")
 
-    time.sleep(10)
+#     time.sleep(10)
 
-    run_plaid_investments("hello", "world")
+#     run_plaid_investments("hello", "world")
 
-    time.sleep(10)
+#     time.sleep(10)
 
-    run_plaid_transactions("hello", "world")
+#     run_plaid_transactions("hello", "world")
 
 
-if __name__ == "__main__":
-    main_test("hello", "world")
+# if __name__ == "__main__":
+#     main_test("hello", "world")
