@@ -43,13 +43,13 @@ class PlaidTransactions:
         cursors_df = self.__bq.query(cursors_query)
         return cursors_df
 
-    def create_cursors_bq_table(self, offset_days, write_disposition):
+    def create_cursors_bq_table(self, offset, write_disposition):
         """
         Creates an empty BigQuery table to store Plaid cursors. It retrieves Plaid access tokens
         and associated item IDs, then adds an empty cursor as the next cursor value to start fresh.
 
         Args:
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
@@ -59,7 +59,7 @@ class PlaidTransactions:
 
         # get BQ schema information, create new partition
         plaid_cursors_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_cursors_YYYYMMDD(), offset_days=offset_days
+            schema=self.__bq_tables.plaid_cursors_YYYYMMDD(), offset=offset
         )
 
         # create empty table to store account data
@@ -124,7 +124,7 @@ class PlaidTransactions:
             write_disposition=write_disposition,
         )
 
-    def copy_temp_cursors_to_cursors_bq_table(self, offset_days, write_disposition):
+    def copy_temp_cursors_to_cursors_bq_table(self, offset, write_disposition):
 
         # get temp_cursors_bq table
         temp_cursors_bq = self.__bq_tables.temp_plaid_cursors()
@@ -156,7 +156,7 @@ class PlaidTransactions:
 
         # get BQ schema information
         plaid_cursors_bq_new = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_cursors_YYYYMMDD(), offset_days=offset_days
+            schema=self.__bq_tables.plaid_cursors_YYYYMMDD(), offset=offset
         )
 
         self.__bq.create_query_bq_table(
@@ -433,12 +433,12 @@ class PlaidTransactions:
 
         return transactions_df
 
-    def create_empty_transactions_bq_table(self, offset_days, write_disposition):
+    def create_empty_transactions_bq_table(self, offset, write_disposition):
         """
         Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
 
         Args:
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
@@ -446,7 +446,7 @@ class PlaidTransactions:
         """
         # get BQ schema information
         plaid_transactions_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_transactions_YYYYMMDD(), offset_days=offset_days
+            schema=self.__bq_tables.plaid_transactions_YYYYMMDD(), offset=offset
         )
 
         # create empty table to store account data
@@ -459,12 +459,12 @@ class PlaidTransactions:
             write_disposition=write_disposition,
         )
 
-    def create_empty_removed_bq_table(self, offset_days, write_disposition):
+    def create_empty_removed_bq_table(self, offset, write_disposition):
         """
         Creates an empty plaid_removed_transactions_YYYYMMDD table in BQ for a specific partition date.
 
         Args:
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
@@ -473,7 +473,7 @@ class PlaidTransactions:
 
         # get BQ schema information
         plaid_removed_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_removed_transactions_YYYYMMDD(), offset_days=offset_days
+            schema=self.__bq_tables.plaid_removed_transactions_YYYYMMDD(), offset=offset
         )
 
         # create empty table to store account data
@@ -486,13 +486,13 @@ class PlaidTransactions:
             write_disposition=write_disposition,
         )
 
-    def upload_transactions_df_to_bq(self, transactions_df, offset_days):
+    def upload_transactions_df_to_bq(self, transactions_df, offset):
         """
         Upload the transactions_df to a pre-existing plaid_transactions_YYYYMMDD BQ table
 
         Args:
             transactions_df (pandas.DataFrame): the dataframe containing all plaid transactions
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
 
         Returns:
             google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
@@ -502,19 +502,19 @@ class PlaidTransactions:
         # get BQ schema information
         plaid_transactions_bq = self.__bq.update_table_schema_partition(
             self.__bq_tables.plaid_transactions_YYYYMMDD(),
-            offset_days=offset_days,
+            offset=offset,
         )
 
         # upload df to plaid_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(transactions_df, plaid_transactions_bq["full_table_name"], "WRITE_APPEND")
 
-    def upload_transactions_df_list_to_bq(self, transactions_df_list, offset_days, write_disposition):
+    def upload_transactions_df_list_to_bq(self, transactions_df_list, offset, write_disposition):
         """
         Upload a list of transactions DataFrames to BigQuery.
 
         Args:
             transactions_df_list (List[pandas.DataFrame]): List of DataFrames containing transactions data.
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
             write_disposition (str): Write disposition for BigQuery ("WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY").
 
         Returns:
@@ -524,23 +524,23 @@ class PlaidTransactions:
         # only upload transactions_df to BQ if there is at least one non-null df
         if len(transactions_df_list) > 0:
             concat_transactions_df = pd.concat(transactions_df_list)
-            self.create_empty_transactions_bq_table(offset_days, write_disposition)
+            self.create_empty_transactions_bq_table(offset, write_disposition)
 
             print("SLEEP 5 SECONDS TO WAIT FOR plaid_transactions_YYYYMMDD creation\n")
             time.sleep(5)
 
-            self.upload_transactions_df_to_bq(concat_transactions_df, offset_days)
+            self.upload_transactions_df_to_bq(concat_transactions_df, offset)
 
         else:
             print("No transactions present in concat_transactions_df")
 
-    def upload_removed_df_to_bq(self, removed_df, offset_days):
+    def upload_removed_df_to_bq(self, removed_df, offset):
         """
         Upload the removed_df to a pre-existing plaid_removed_transactions_YYYYMMDD BQ table
 
         Args:
             removed_df (pandas.DataFrame): the dataframe containing all plaid removed transactions
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
 
         Returns:
             google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
@@ -550,19 +550,19 @@ class PlaidTransactions:
         # get BQ schema information
         plaid_removed_bq = self.__bq.update_table_schema_partition(
             self.__bq_tables.plaid_removed_transactions_YYYYMMDD(),
-            offset_days=offset_days,
+            offset=offset,
         )
 
         # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(removed_df, plaid_removed_bq["full_table_name"], "WRITE_APPEND")
 
-    def upload_removed_df_list_to_bq(self, removed_df_list, offset_days, write_disposition):
+    def upload_removed_df_list_to_bq(self, removed_df_list, offset, write_disposition):
         """
         Upload a list of removed transactions DataFrames to BigQuery.
 
         Args:
             removed_df_list (List[pandas.DataFrame]): List of DataFrames containing removed transactions data.
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
             write_disposition (str): Write disposition for BigQuery ("WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY").
 
         Returns:
@@ -571,17 +571,17 @@ class PlaidTransactions:
         # only upload removed_df to BQ if there is at least one non-null df
         if len(removed_df_list) > 0:
             concat_removed_df = pd.concat(removed_df_list)
-            self.create_empty_removed_bq_table(offset_days, write_disposition)
+            self.create_empty_removed_bq_table(offset, write_disposition)
 
             print("SLEEP 5 SECONDS TO WAIT FOR plaid_removed_transactions_YYYYMMDD creation\n")
             time.sleep(5)
 
-            self.upload_removed_df_to_bq(concat_removed_df, offset_days)
+            self.upload_removed_df_to_bq(concat_removed_df, offset)
 
         else:
             print("No removed transactions present in concat_removed_df")
 
-    def generate_transactions_dfs(self, access_token, item_id, next_cursor, offset_days, add_test_transaction):
+    def generate_transactions_dfs(self, access_token, item_id, next_cursor, offset, add_test_transaction):
         """
         Generate transactions_df and removed_df from Plaid API data.
 
@@ -589,7 +589,7 @@ class PlaidTransactions:
             access_token (str): Plaid access token.
             item_id (str): Plaid item ID.
             next_cursor (str): Next cursor for pagination.
-            offset_days (int): The offset to be applied to a given partition date.
+            offset (int): The offset to be applied to a given partition date.
             add_test_transaction (bool): Whether to add test transactions.
 
         Returns:
@@ -613,7 +613,7 @@ class PlaidTransactions:
             transactions_df_list.append(modified_df)
 
         # create a final removed_df to store removed transactions. Returns None if no data available
-        partition_date = self.__bq.get_date(offset_days=offset_days)
+        partition_date = self.__bq.get_date(offset=offset, partition_format="YYYYMMDD").date()
         removed_df = self.__create_removed_df(item_id, removed_transactions, removed_accounts, partition_date)
 
         # return if there is no data available
@@ -638,13 +638,13 @@ class PlaidTransactions:
 
         return transactions_df, removed_df
 
-    def generate_transactions_df_list(self, latest_cursors_df, offset_days, add_test_transaction):
+    def generate_transactions_df_list(self, latest_cursors_df, offset, add_test_transaction):
         """
         Generate a list of transactions DataFrames from Plaid API data.
 
         Args:
             latest_cursors_df (pandas.DataFrame): DataFrame containing the latest cursors for each item.
-            offset_days (int): Number of days to offset in the table name.
+            offset (int): Number of days to offset in the table name.
             add_test_transaction (bool): Whether to add test transactions.
 
         Returns:
@@ -659,7 +659,7 @@ class PlaidTransactions:
                 access_token=row["access_token"],
                 item_id=row["item_id"],
                 next_cursor=row["next_cursor"],
-                offset_days=offset_days,
+                offset=offset,
                 add_test_transaction=add_test_transaction,
             )
 

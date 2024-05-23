@@ -23,7 +23,24 @@ class CloudSchemas:
             "memory": self.memory,
             "service_account": self.service_account,
             "timezone": self.timezone,
-            "schedule": "0 10 * * *",
+            "schedule": "0 10 * * *",  # 10:00am UTC
+        }
+
+    def budget_values(self):
+        return {
+            "project_id": self.project_id,
+            "function_name": "budget-values-workflow",
+            "job_name": "budget-values-scheduler",
+            "trigger_topic": "budget-values-pubsub",
+            "entry_point": "run_budget_values",
+            "source": self.source,
+            "runtime": self.runtime,
+            "region": self.region,
+            "timeout": self.timeout,
+            "memory": self.memory,
+            "service_account": self.service_account,
+            "timezone": self.timezone,
+            "schedule": "10 10 * * *",  # 10:10am UTC
         }
 
     def plaid_transactions(self):
@@ -40,7 +57,7 @@ class CloudSchemas:
             "memory": self.memory,
             "service_account": self.service_account,
             "timezone": self.timezone,
-            "schedule": "15 10 * * *",
+            "schedule": "15 10 * * *",  # 10:15am UTC
         }
 
     def plaid_investments(self):
@@ -57,7 +74,7 @@ class CloudSchemas:
             "memory": self.memory,
             "service_account": self.service_account,
             "timezone": self.timezone,
-            "schedule": "30 10 * * *",
+            "schedule": "30 10 * * *",  # 10:30am UTC
         }
 
     def test_job(self):

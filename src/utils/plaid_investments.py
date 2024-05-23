@@ -298,12 +298,12 @@ class PlaidInvestments:
             "type": None,
         }
 
-    def create_empty_investment_transactions_bq_table(self, offset_days, write_disposition):
+    def create_empty_investment_transactions_bq_table(self, offset, write_disposition):
         """
         Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
 
         Args:
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
@@ -311,7 +311,7 @@ class PlaidInvestments:
         """
         # get BQ schema information
         plaid_investment_transactions_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_investment_transactions_YYYYMMDD(), offset_days=offset_days
+            schema=self.__bq_tables.plaid_investment_transactions_YYYYMMDD(), offset=offset
         )
 
         # create empty table to store account data
@@ -324,12 +324,12 @@ class PlaidInvestments:
             write_disposition=write_disposition,
         )
 
-    def create_empty_investment_holdings_bq_table(self, offset_days, write_disposition):
+    def create_empty_investment_holdings_bq_table(self, offset, write_disposition):
         """
         Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
 
         Args:
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
@@ -337,7 +337,7 @@ class PlaidInvestments:
         """
         # get BQ schema information
         plaid_investment_holdings_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_investment_holdings_YYYYMMDD(), offset_days=offset_days
+            schema=self.__bq_tables.plaid_investment_holdings_YYYYMMDD(), offset=offset
         )
 
         # create empty table to store account data
@@ -350,13 +350,13 @@ class PlaidInvestments:
             write_disposition=write_disposition,
         )
 
-    def upload_investment_transactions_df_to_bq(self, investment_transactions_df, offset_days):
+    def upload_investment_transactions_df_to_bq(self, investment_transactions_df, offset):
         """
         Upload the transactions_df to a pre-existing plaid_transactions_YYYYMMDD BQ table
 
         Args:
             investment_transactions_df (pandas.DataFrame): the dataframe containing all plaid transactions
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
 
         Returns:
             google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
@@ -366,7 +366,7 @@ class PlaidInvestments:
         # get BQ schema information
         plaid_investment_transactions_bq = self.__bq.update_table_schema_partition(
             self.__bq_tables.plaid_investment_transactions_YYYYMMDD(),
-            offset_days=offset_days,
+            offset=offset,
         )
 
         # upload df to plaid_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
@@ -374,15 +374,13 @@ class PlaidInvestments:
             investment_transactions_df, plaid_investment_transactions_bq["full_table_name"], "WRITE_APPEND"
         )
 
-    def upload_investment_transactions_df_list_to_bq(
-        self, investment_transactions_df_list, offset_days, write_disposition
-    ):
+    def upload_investment_transactions_df_list_to_bq(self, investment_transactions_df_list, offset, write_disposition):
         """
         Upload a list of investment transactions DataFrames to BigQuery.
 
         Args:
             investment_transactions_df_list (List[pandas.DataFrame]): List of DataFrames containing investment transactions data.
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
             write_disposition (str): Write disposition for BigQuery ("WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY").
 
         Returns:
@@ -396,18 +394,18 @@ class PlaidInvestments:
             concat_investment_transactions_df = pd.concat(investment_transactions_df_list)
 
             # create empty plaid_investment_transactions_YYYYMMDD to upload transactions to
-            self.create_empty_investment_transactions_bq_table(offset_days, write_disposition)
+            self.create_empty_investment_transactions_bq_table(offset, write_disposition)
             print("SLEEP 5 SECONDS TO WAIT FOR plaid_investment_transactions_YYYYMMDD creation\n")
             time.sleep(5)
-            self.upload_investment_transactions_df_to_bq(concat_investment_transactions_df, offset_days)
+            self.upload_investment_transactions_df_to_bq(concat_investment_transactions_df, offset)
 
-    def upload_investment_holdings_df_to_bq(self, holdings_df, offset_days):
+    def upload_investment_holdings_df_to_bq(self, holdings_df, offset):
         """
         Upload the holdings_df to a pre-existing plaid_investment_holdings_YYYYMMDD BQ table
 
         Args:
             holdings_df (pandas.DataFrame): the dataframe containing all plaid removed transactions
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
 
         Returns:
             google.cloud.bigquery.job.LoadJob: A BigQuery load job object representing the process of loading
@@ -417,19 +415,19 @@ class PlaidInvestments:
         # get BQ schema information
         plaid_investment_holdings_bq = self.__bq.update_table_schema_partition(
             self.__bq_tables.plaid_investment_holdings_YYYYMMDD(),
-            offset_days=offset_days,
+            offset=offset,
         )
 
         # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(holdings_df, plaid_investment_holdings_bq["full_table_name"], "WRITE_APPEND")
 
-    def upload_investment_holdings_df_list_to_bq(self, holdings_df_list, offset_days, write_disposition):
+    def upload_investment_holdings_df_list_to_bq(self, holdings_df_list, offset, write_disposition):
         """
         Upload a list of investment holdings DataFrames to BigQuery.
 
         Args:
             holdings_df_list (List[pandas.DataFrame]): List of DataFrames containing investment holdings data.
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
             write_disposition (str): Write disposition for BigQuery ("WRITE_TRUNCATE", "WRITE_APPEND", or "WRITE_EMPTY").
 
         Returns:
@@ -443,10 +441,10 @@ class PlaidInvestments:
             concat_holdings_df = pd.concat(holdings_df_list)
 
             # create empty plaid_investment_holdings_YYYYMMDD to upload holdings to
-            self.create_empty_investment_holdings_bq_table(offset_days, write_disposition)
+            self.create_empty_investment_holdings_bq_table(offset, write_disposition)
 
             print("SLEEP 5 SECONDS TO WAIT FOR plaid_investment_holdings_YYYYMMDD creation\n")
             time.sleep(5)
 
             # upload holdings df to BQ
-            self.upload_investment_holdings_df_to_bq(concat_holdings_df, offset_days)
+            self.upload_investment_holdings_df_to_bq(concat_holdings_df, offset)

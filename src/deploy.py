@@ -8,10 +8,34 @@ cs = CloudSchemas()
 
 
 financial_accounts = cs.financial_accounts()
+budget_values = cs.budget_values()
 plaid_transactions = cs.plaid_transactions()
 plaid_investments = cs.plaid_investments()
 
-for job in [financial_accounts, plaid_transactions, plaid_investments]:
+new_job = budget_values
+print("CREATE PUB/SUB:", new_job["trigger_topic"])
+gcp.create_pubsub_topic(
+    project_id=new_job["project_id"],
+    topic_name=new_job["trigger_topic"],
+    labels=None,
+    kms_key_name=None,
+    message_retention_duration=None,
+)
+
+print("CREATE SCHEDULER:", new_job["trigger_topic"])
+gcp.create_scheduler_job(
+    project_id=new_job["project_id"],
+    location=new_job["region"],
+    job_name=new_job["job_name"],
+    schedule=new_job["schedule"],
+    timezone=new_job["timezone"],
+    topic_name=new_job["trigger_topic"],
+    payload=new_job["trigger_topic"],
+    confirm=True,
+)
+
+
+for job in [financial_accounts, budget_values, plaid_transactions, plaid_investments]:
     # print("CREATE PUB/SUB:", job["trigger_topic"])
     # gcp.create_pubsub_topic(
     #     project_id=job["project_id"],
@@ -33,18 +57,18 @@ for job in [financial_accounts, plaid_transactions, plaid_investments]:
     #     confirm=True,
     # )
 
-    print("CREATE FUNCTION:", job["function_name"])
-    gcp.create_cloud_function(
-        function_name=job["function_name"],
-        trigger_topic=job["trigger_topic"],
-        source=job["source"],
-        runtime=job["runtime"],
-        entry_point=job["entry_point"],
-        region=job["region"],
-        timeout=job["timeout"],
-        memory=job["memory"],
-        service_account=job["service_account"],
-        show_output=True,
-    )
+    # print("CREATE FUNCTION:", job["function_name"])
+    # gcp.create_cloud_function(
+    #     function_name=job["function_name"],
+    #     trigger_topic=job["trigger_topic"],
+    #     source=job["source"],
+    #     runtime=job["runtime"],
+    #     entry_point=job["entry_point"],
+    #     region=job["region"],
+    #     timeout=job["timeout"],
+    #     memory=job["memory"],
+    #     service_account=job["service_account"],
+    #     show_output=True,
+    # )
 
     print()

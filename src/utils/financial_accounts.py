@@ -191,14 +191,14 @@ class FinancialAccounts:
             print(e)
             return False
 
-    def add_plaid_accounts_to_bq(self, access_tokens, plaid_country_codes, offset_days):
+    def add_plaid_accounts_to_bq(self, access_tokens, plaid_country_codes, offset):
         """
         Add accounts data to a defined BQ table.
 
         Args:
             access_token (str): Plaid access token.
             plaid_country_codes (list): Plaid country codes in list form.
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
 
         Returns:
             None
@@ -207,7 +207,7 @@ class FinancialAccounts:
         # add access tokens to accounts table
         financial_accounts_bq = self.__bq.update_table_schema_partition(
             schema=self.__bq_tables.financial_accounts_YYYYMMDD(),
-            offset_days=offset_days,
+            offset=offset,
         )
         for token in list(set(access_tokens)):
             accounts_df = self.__create_plaid_accounts_df(token, plaid_country_codes)
@@ -225,12 +225,12 @@ class FinancialAccounts:
 
         print(f"SUCCESS: all access tokens added to `{financial_accounts_bq['full_table_name']}`\n")
 
-    def create_empty_accounts_bq_table(self, offset_days, write_disposition):
+    def create_empty_accounts_bq_table(self, offset, write_disposition):
         """
         Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
 
         Args:
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
             write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
 
         Returns:
@@ -238,7 +238,7 @@ class FinancialAccounts:
         """
         # get BQ schema information
         financial_accounts_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.financial_accounts_YYYYMMDD(), offset_days=offset_days
+            schema=self.__bq_tables.financial_accounts_YYYYMMDD(), offset=offset
         )
 
         # create empty table to store account data

@@ -2,6 +2,62 @@ class BqTableSchemas:
     def __init__(self):
         pass
 
+    def budget_values_YYYYMM(self):
+        project_id = "zsc-personal"
+        dataset_id = "budget_values"
+        table_id = "budget_values_YYYYMM"
+        full_table_name = project_id + "." + dataset_id + "." + table_id
+        table_description = "Stores all budget categories and associated values."
+        table_schema = [
+            {
+                "name": "category_raw",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "subcategory_raw",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "category",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "subcategory",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "detail_category",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "budget_amount",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+        ]
+
+        schema = {
+            "project_id": project_id,
+            "dataset_id": dataset_id,
+            "table_id": table_id,
+            "full_table_name": full_table_name,
+            "table_description": table_description,
+            "table_schema": table_schema,
+        }
+
+        return schema
+
     def financial_accounts_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
