@@ -2,7 +2,8 @@ import json
 import time
 import sys
 import logging
-from datetime import timedelta, datetime as dt, timezone
+from datetime import datetime as dt, timezone
+from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
 from google.cloud.bigquery import LoadJobConfig
@@ -32,40 +33,58 @@ class BqUtils:
         """
         print(json.dumps(response, indent=2, sort_keys=True, default=str))
 
-    def get_date(self, offset_days=0):
+    def get_date(self, offset, partition_format):
         """
-        Get partition date according to current date (UTC). Use offset_days to add/subtract an offset.
-        e.g. if today is 2023-03-20, and offset_days is set to 0 -> "2023-03-20"
-        e.g. if today is 2023-03-20, and offset_days is set to -1 -> "2023-03-19"
-        e.g. if today is 2023-03-20, and offset_days is set to 1 -> "2023-03-21"
+        Get partition date according to current date (UTC). Use offset to add/subtract an offset.
+        e.g. if today is 2023-03-20, and offset is set to 0 -> "2023-03-20"
+        e.g. if today is 2023-03-20, and offset is set to -1 -> "2023-03-19"
+        e.g. if today is 2023-03-20, and offset is set to 1 -> "2023-03-21"
 
         Args:
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
 
         Returns:
             datetime.date: The partition date formatted as "YYYY-MM-DD"
         """
-        return (dt.now(timezone.utc) + timedelta(days=offset_days)).date()
 
-    def get_partition_date(self, offset_days):
+        if partition_format == "YYYYMMDD":
+            return dt.now(timezone.utc) + relativedelta(days=offset)
+        elif partition_format == "YYYYMM":
+            return dt.now(timezone.utc) + relativedelta(months=offset)
+        elif partition_format == "YYYYMMDDHH" or partition_format == "YYYYMMDDTHH":
+            return dt.now(timezone.utc) + relativedelta(hours=offset)
+        else:
+            logging.error("Must input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
+            return
+
+    def get_partition_date(self, offset, partition_format):
         """
-        Get partition date according to current date (UTC). Use offset_days to add/subtract an offset.
-        e.g. if today is 2023-03-20, and offset_days is set to 0 -> "20230320"
-        e.g. if today is 2023-03-20, and offset_days is set to -1 -> "20230319"
-        e.g. if today is 2023-03-20, and offset_days is set to 1 -> "20230321"
+        Get partition date according to current date (UTC). Use offset to add/subtract an offset.
+        e.g. if today is 2023-03-20, and offset is set to 0 -> "20230320"
+        e.g. if today is 2023-03-20, and offset is set to -1 -> "20230319"
+        e.g. if today is 2023-03-20, and offset is set to 1 -> "20230321"
 
         Args:
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
 
         Returns:
             str: The partition date formatted as "YYYYMMDD"
         """
 
-        date_utc = self.get_date(offset_days)
+        date_utc = self.get_date(offset, partition_format)
 
         # Format the UTC date and time as a string if needed
-        partition_date_string = date_utc.strftime("%Y%m%d")
-        return partition_date_string
+        if partition_format == "YYYYMMDD":
+            return date_utc.strftime("%Y%m%d")
+        elif partition_format == "YYYYMM":
+            return date_utc.strftime("%Y%m")
+        elif partition_format == "YYYYMMDDHH":
+            return date_utc.strftime("%Y%m%d%H")
+        elif partition_format == "YYYYMMDDTHH":
+            return date_utc.strftime("%Y%m%dT%H")
+        else:
+            logging.error("Must input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
+            return
 
     def get_bq_client(self):
         """
@@ -188,30 +207,31 @@ class BqUtils:
         table_id = full_table_name.split(".")[2]
         return table_id
 
-    def update_single_table_partition(self, table_id, offset_days):
+    def update_single_table_partition(self, table_id, offset):
         """
         Update the partition of a single table based on the offset in days.
 
         Args:
             table_id (str): The ID of the table to update
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
 
         Returns:
             str: The updated table ID with the new partition.
         """
 
-        partition_date = self.get_partition_date(offset_days=offset_days)
+        partition_format = self.partition_format(table_id)
+        partition_date = self.get_partition_date(offset, partition_format)
         table_prefix = self.replace_table_suffix(table_id)
         table_id = table_prefix + partition_date
         return table_id
 
-    def update_many_table_partitions(self, table_list, offset_days):
+    def update_many_table_partitions(self, table_list, offset):
         """
         Update the partitions of multiple tables in the list based on the offset in days.
 
         Args:
             table_list (List[str]): List of table IDs to update
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
 
         Returns:
             List[str]: List of updated table IDs with the new partitions
@@ -222,7 +242,7 @@ class BqUtils:
             table_split = table.split(".")
 
             if self.partition_format(table_split[2]) is not None:
-                table_split[2] = self.update_single_table_partition(table_split[2], offset_days)
+                table_split[2] = self.update_single_table_partition(table_split[2], offset)
 
             updated_tables.append(table_split)
         return updated_tables
@@ -245,21 +265,21 @@ class BqUtils:
         schema["full_table_name"] = schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
         return schema
 
-    def update_table_schema_partition(self, schema, offset_days):
+    def update_table_schema_partition(self, schema, offset):
         """
         Updates a table's schema provided via BqTableSchemas with the "table_id" value representing a new partition.
-        For example, test_table_YYYYMMDD is provided, then using offset_days = 0 and current date is "20240401",
+        For example, test_table_YYYYMMDD is provided, then using offset = 0 and current date is "20240401",
         create a new value for schema["table_id"] = "test_table_20240401"
 
         Args:
             schema (dict): the schema represented in BqTableSchemas.
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
 
         Returns:
             schema (dict): The updated table schema for the "table_id" value representing the latest partition
         """
         # replace {table_name}_YYYYMMDD with specific partition e.g. {table_name}_20240401
-        new_table_id = self.update_single_table_partition(schema["table_id"], offset_days)
+        new_table_id = self.update_single_table_partition(schema["table_id"], offset)
         schema["table_id"] = new_table_id
         schema["full_table_name"] = schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
         return schema
@@ -292,13 +312,13 @@ class BqUtils:
             else:
                 logging.error(str(e))
 
-    def check_dependencies(self, table_list, offset_days):
+    def check_dependencies(self, table_list, offset):
         """
         Check the dependencies of BigQuery tables.
 
         Args:
             table_list (List[str]): List of table IDs to check.
-            offset_days (int): The offset to be applied to a given partition date
+            offset (int): The offset to be applied to a given partition date
 
         Returns:
             None
@@ -306,8 +326,8 @@ class BqUtils:
 
         logging.info("Checking BQ table dependencies...")
 
-        # update table names from {table_name}_YYYYMMDD to specific table name based on "offset_days" e.g. {table_name}_20240401
-        updated_tables = self.update_many_table_partitions(table_list, offset_days)
+        # update table names from {table_name}_YYYYMMDD to specific table name based on "offset" e.g. {table_name}_20240401
+        updated_tables = self.update_many_table_partitions(table_list, offset)
 
         all_tables_exist = False
         count = 0

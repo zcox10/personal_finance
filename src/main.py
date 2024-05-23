@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from utils.bq_utils import BqUtils
 from utils.secrets_utils import SecretsUtils
 from utils.plaid_utils import PlaidUtils
+from utils.budget_values import BudgetValues
 from utils.financial_accounts import FinancialAccounts
 from utils.plaid_transactions import PlaidTransactions
 from utils.plaid_investments import PlaidInvestments
@@ -21,7 +22,7 @@ PLAID_HOST = plaid.Environment.Development
 
 # CONSTANTS: general
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
-OFFSET_DAYS = 0
+OFFSET = 0
 
 # CONSTANTS: plaid transactions
 BACKFILL = False
@@ -43,32 +44,47 @@ def run_financial_accounts(event, context):
     # pubsub_message = base64.b64decode(event["data"]).decode("utf-8")
     # print(f"Received message: {pubsub_message}")
 
-    print("STARTING main_financial_accounts.py")
+    print("STARTING financial_accounts")
 
     # init client
     financial_accounts = FinancialAccounts(bq_client, plaid_client)
 
     # Create a new financial_accounts table to, upload all account info according to access_tokens provided
-    financial_accounts.create_empty_accounts_bq_table(OFFSET_DAYS, WRITE_DISPOSITION)
-    financial_accounts.add_plaid_accounts_to_bq(PLAID_ACCESS_TOKENS, ["US"], OFFSET_DAYS)
+    financial_accounts.create_empty_accounts_bq_table(OFFSET, WRITE_DISPOSITION)
+    financial_accounts.add_plaid_accounts_to_bq(PLAID_ACCESS_TOKENS, ["US"], OFFSET)
 
     print("SUCCESS: Financial account data uploaded to BQ")
 
 
+def run_budget_values(event, context):
+    print("STARTING budget_values")
+
+    # init client
+    budget_values = BudgetValues(bq_client)
+
+    # create most recent budget_values_df then upload to bq
+    budget_values.upload_budget_values_df_to_bq(OFFSET)
+
+    print("SUCCESS: Budget category data uploaded to BQ")
+
+
 def run_plaid_transactions(event, context):
-    print("STARTING main_plaid_transactions.py")
+    print("STARTING plaid_transactions")
 
     # init client
     plaid_transactions = PlaidTransactions(bq_client, plaid_client)
 
     # check table dependencies
-    table_list = ["zsc-personal.personal_finance.financial_accounts_YYYYMMDD"]
-    bq.check_dependencies(table_list, OFFSET_DAYS)
+    table_list = [
+        "zsc-personal.personal_finance.financial_accounts_YYYYMMDD",
+        "zsc-personal.budget_values.budget_values_YYYYMM",
+    ]
+    bq.check_dependencies(table_list, OFFSET)
 
     # only create new financial_accounts table and plaid_cursors_YYYYMMDD table if starting with initial backfill
     if BACKFILL:
         # Create a new plaid_cursors_YYYYMMDD table with access_token, item_id, and next_cursor
-        plaid_transactions.create_cursors_bq_table(OFFSET_DAYS, WRITE_DISPOSITION)
+        plaid_transactions.create_cursors_bq_table(OFFSET, WRITE_DISPOSITION)
 
     # create empty temp cursor table to upload cursors to for the current run.
     # When job finishes running, this table will become the latest plaid_cursors_YYYYMMDD partitions
@@ -79,30 +95,30 @@ def run_plaid_transactions(event, context):
 
     # Run create_transactions_df() to store added/modified transactions in transactions_df and removed transactions in removed_df
     transactions_df_list, removed_df_list = plaid_transactions.generate_transactions_df_list(
-        latest_cursors_df, OFFSET_DAYS, ADD_TEST_TRANSACTIONS
+        latest_cursors_df, OFFSET, ADD_TEST_TRANSACTIONS
     )
 
     # only upload transactions_df to BQ if there is at least one non-null df
-    plaid_transactions.upload_transactions_df_list_to_bq(transactions_df_list, OFFSET_DAYS, WRITE_DISPOSITION)
+    plaid_transactions.upload_transactions_df_list_to_bq(transactions_df_list, OFFSET, WRITE_DISPOSITION)
 
     # only upload removed_df to BQ if there is at least one non-null df
-    plaid_transactions.upload_removed_df_list_to_bq(removed_df_list, OFFSET_DAYS, WRITE_DISPOSITION)
+    plaid_transactions.upload_removed_df_list_to_bq(removed_df_list, OFFSET, WRITE_DISPOSITION)
 
     # Copy temp_cursors to plaid_cursors_YYYYMMDD
-    plaid_transactions.copy_temp_cursors_to_cursors_bq_table(OFFSET_DAYS, write_disposition="WRITE_TRUNCATE")
+    plaid_transactions.copy_temp_cursors_to_cursors_bq_table(OFFSET, write_disposition="WRITE_TRUNCATE")
 
     print("SUCCESS: Plaid transactions data uploaded to BQ")
 
 
 def run_plaid_investments(event, context):
-    print("STARTING main_plaid_investments.py")
+    print("STARTING plaid_investments")
 
     # init client
     plaid_investments = PlaidInvestments(bq_client, plaid_client)
 
     # check table dependencies
     table_list = ["zsc-personal.personal_finance.financial_accounts_YYYYMMDD"]
-    bq.check_dependencies(table_list, offset_days=OFFSET_DAYS)
+    bq.check_dependencies(table_list, OFFSET)
 
     # get investments access_tokens
     access_tokens = list(plaid_client.get_access_tokens(products=["investments"])["access_token"].unique())
@@ -113,18 +129,18 @@ def run_plaid_investments(event, context):
     )
 
     # only upload holdings_df to BQ if there is at least one non-null df
-    plaid_investments.upload_investment_holdings_df_list_to_bq(holdings_df_list, OFFSET_DAYS, WRITE_DISPOSITION)
+    plaid_investments.upload_investment_holdings_df_list_to_bq(holdings_df_list, OFFSET, WRITE_DISPOSITION)
 
     # only upload investment_transactions_df to BQ if there is at least one non-null df
     plaid_investments.upload_investment_transactions_df_list_to_bq(
-        investment_transactions_df_list, OFFSET_DAYS, WRITE_DISPOSITION
+        investment_transactions_df_list, OFFSET, WRITE_DISPOSITION
     )
 
     print("SUCCESS: Plaid investment data uploaded to BQ")
 
 
 def run_delete_tables(event, context):
-    print("STARTING main_delete_tables.py")
+    print("STARTING delete_tables")
     tables = [
         "financial_accounts_YYYYMMDD",
         "plaid_cursors_YYYYMMDD",
