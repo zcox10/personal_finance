@@ -161,9 +161,9 @@ def run_delete_tables(event, context):
 
 
 # def main_test(event, context):
-#     # run_delete_tables("hello", "world")
+#     run_delete_tables("hello", "world")
 
-#     # time.sleep(10)
+#     time.sleep(10)
 
 #     run_financial_accounts("hello", "world")
 
