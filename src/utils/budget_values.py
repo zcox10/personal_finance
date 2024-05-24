@@ -17,7 +17,14 @@ class BudgetValues:
 
         return pd.DataFrame(
             self.__budget_schema(),
-            columns=["category_raw", "subcategory_raw", "category", "subcategory", "detail_category", "budget_amount"],
+            columns=[
+                "category_raw",
+                "subcategory_raw",
+                "category",
+                "subcategory",
+                "detail_category",
+                "budget_amount",
+            ],
         )
 
     def upload_budget_values_df_to_bq(self, offset):
@@ -163,7 +170,7 @@ class BudgetValues:
                 "subcategory_raw": "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS",
                 "category": "Personal Investments",
                 "subcategory": "FIX",  # TODO: should be merchant name, includes Coinbase, Schwab, Fundrise, Binance, etc.
-                "detail_category": "Investment Funds",
+                "detail_category": None,
                 "budget_amount": 0.0,
             },
             {
@@ -186,7 +193,7 @@ class BudgetValues:
                 "category_raw": "TRANSFER_OUT",  # CLUSTER FUCK - lots of transfers: BetterBrand (bagels), Palisades, from Checking -> Savings, and BoA -> Venmo/Zelle
                 "subcategory_raw": "TRANSFER_OUT_ACCOUNT_TRANSFER",
                 "category": "Personal Spending",
-                "subcategory": "FIX",  # TODO: needs to be a case statement with each brand - lame
+                "subcategory": "Personal Payments",
                 "detail_category": "Account Transfer",
                 "budget_amount": 0.0,
             },
@@ -194,8 +201,8 @@ class BudgetValues:
                 "category_raw": "TRANSFER_OUT",  # random purchases: 118 wallet, ETS ERG (GRE), Cold Beers & Cheeseburgers
                 "subcategory_raw": "TRANSFER_OUT_OTHER_TRANSFER_OUT",
                 "category": "Personal Spending",
-                "subcategory": "FIX",  # TODO: needs to be a case statement with each brand - lame
-                "detail_category": "Other Transfer Out",
+                "subcategory": "Shopping",
+                "detail_category": "Other",
                 "budget_amount": 0.0,
             },
             # LOAN_PAYMENTS
@@ -212,7 +219,7 @@ class BudgetValues:
                 "subcategory_raw": "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT",
                 "category": "Expenses",
                 "subcategory": "Loan Payments",
-                "detail_category": "Credit Card Payment",
+                "detail_category": "Credit Card",
                 "budget_amount": 0.0,
             },
             {
@@ -220,7 +227,7 @@ class BudgetValues:
                 "subcategory_raw": "LOAN_PAYMENTS_PERSONAL_LOAN_PAYMENT",
                 "category": "Expenses",
                 "subcategory": "Loan Payments",
-                "detail_category": "Personal Loan Payment",
+                "detail_category": "Personal Loan",
                 "budget_amount": 0.0,
             },
             {
@@ -228,7 +235,7 @@ class BudgetValues:
                 "subcategory_raw": "LOAN_PAYMENTS_MORTGAGE_PAYMENT",
                 "category": "Expenses",
                 "subcategory": "Loan Payments",
-                "detail_category": "Mortgage Payment",
+                "detail_category": "Mortgage",
                 "budget_amount": 0.0,
             },
             {
@@ -236,7 +243,7 @@ class BudgetValues:
                 "subcategory_raw": "LOAN_PAYMENTS_STUDENT_LOAN_PAYMENT",
                 "category": "Expenses",
                 "subcategory": "Loan Payments",
-                "detail_category": "Student Loan Payment",
+                "detail_category": "Student Loan",
                 "budget_amount": 0.0,
             },
             {
@@ -302,7 +309,7 @@ class BudgetValues:
                 "subcategory_raw": "ENTERTAINMENT_CASINOS_AND_GAMBLING",
                 "category": "Personal Spending",
                 "subcategory": "Entertainment",
-                "detail_category": "Casinos and Gambling",
+                "detail_category": "Gambling",
                 "budget_amount": -450.0,  # all entertainment is lumped here: video games, TV/movies, golf, etc.
             },
             {
@@ -318,7 +325,7 @@ class BudgetValues:
                 "subcategory_raw": "ENTERTAINMENT_SPORTING_EVENTS_AMUSEMENT_PARKS_AND_MUSEUMS",
                 "category": "Personal Spending",
                 "subcategory": "Entertainment",
-                "detail_category": "Sporting Events, Amusement Parks, and Museums",
+                "detail_category": "General",
                 "budget_amount": 0.0,
             },
             {
@@ -342,7 +349,7 @@ class BudgetValues:
                 "subcategory_raw": "ENTERTAINMENT_OTHER_ENTERTAINMENT",
                 "category": "Personal Spending",
                 "subcategory": "Entertainment",
-                "detail_category": "Other",
+                "detail_category": "General",
                 "budget_amount": 0.0,
             },
             # FOOD_AND_DRINK
@@ -351,7 +358,7 @@ class BudgetValues:
                 "subcategory_raw": "FOOD_AND_DRINK_BEER_WINE_AND_LIQUOR",
                 "category": "Personal Spending",
                 "subcategory": "Food and Drink",
-                "detail_category": "Beer, Wine, and Liquor",
+                "detail_category": "Alcohol",
                 "budget_amount": 0.0,
             },
             {
@@ -408,7 +415,7 @@ class BudgetValues:
                 "subcategory_raw": "GENERAL_MERCHANDISE_BOOKSTORES_AND_NEWSSTANDS",
                 "category": "Personal Spending",
                 "subcategory": "Shopping",
-                "detail_category": "Bookstores and Newstands",
+                "detail_category": "Media",
                 "budget_amount": -140.0,  # applies for all "Personal Spending - Shopping" categories
             },
             {
@@ -416,7 +423,7 @@ class BudgetValues:
                 "subcategory_raw": "GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES",
                 "category": "Personal Spending",
                 "subcategory": "Shopping",
-                "detail_category": "Clothing and Accessories",
+                "detail_category": "Clothing",
                 "budget_amount": 0.0,
             },
             {
@@ -586,7 +593,7 @@ class BudgetValues:
                 "subcategory_raw": "MEDICAL_PHARMACIES_AND_SUPPLEMENTS",
                 "category": "Personal Spending",
                 "subcategory": "Shopping",
-                "detail_category": "Pharmacies and Supplements",
+                "detail_category": "General Stores",
                 "budget_amount": 0.0,
             },
             {
@@ -789,7 +796,7 @@ class BudgetValues:
                 "subcategory_raw": "TRANSPORTATION_TAXIS_AND_RIDE_SHARES",
                 "category": "Personal Spending",
                 "subcategory": "Transportation",
-                "detail_category": "Taxis and Ride Shares",
+                "detail_category": "Taxis",
                 "budget_amount": -50.0,
             },
             {
