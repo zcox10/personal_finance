@@ -1,6 +1,6 @@
 import time
 import pandas as pd
-import logging
+import sys
 from google.api_core.exceptions import NotFound
 from utils.bq_utils import BqUtils
 from jobs.bq_table_schemas import BqTableSchemas
@@ -186,8 +186,8 @@ class FinancialAccounts:
             print(f"`{full_table_name}` does not exist!")
             return False
         except Exception as e:
-            logging.error("\n" + str(e))
-            return False
+            print("\n" + str(e))
+            sys.exit(1)
 
     def add_plaid_accounts_to_bq(self, access_tokens, plaid_country_codes, offset):
         """

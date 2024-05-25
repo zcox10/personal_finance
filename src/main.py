@@ -14,18 +14,15 @@ from utils.plaid_transactions import PlaidTransactions
 from utils.plaid_investments import PlaidInvestments
 
 # SECRETS
-# secrets = SecretsUtils().create_secrets_dict(secret_type="PROD")
-secrets = SecretsUtils().create_secrets_dict(secret_type="DEV")
+secrets = SecretsUtils().create_secrets_dict(secret_type="PROD")
 PLAID_CLIENT_ID = secrets["PLAID_CLIENT_ID"]
-# PLAID_SECRET = secrets["PLAID_SECRET_PROD"]
-PLAID_SECRET = secrets["PLAID_SECRET_DEV"]
+PLAID_SECRET = secrets["PLAID_SECRET_PROD"]
 PLAID_ACCESS_TOKENS = SecretsUtils().get_access_token_secrets(secrets)
-# PLAID_HOST = plaid.Environment.Production
-PLAID_HOST = plaid.Environment.Development
+PLAID_HOST = plaid.Environment.Production
 
 # CONSTANTS: general
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
-OFFSET = 10
+OFFSET = 0
 
 # CONSTANTS: plaid transactions
 BACKFILL = False
@@ -33,9 +30,11 @@ ADD_TEST_TRANSACTIONS = False  # to add a removed transaction or not in generate
 
 # CONSTANTS: plaid investments
 START_DATE = (  # if backfill, use 730 days ago as START_DATE. Else, use today
-    (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d") if BACKFILL else datetime.now().strftime("%Y-%m-%d")
+    (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
+    if BACKFILL
+    else (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
 )
-END_DATE = datetime.now().strftime("%Y-%m-%d")
+END_DATE = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
 
 # initialize main clients
 bq_client = bigquery.Client()
@@ -166,9 +165,9 @@ def run_delete_tables(event, context):
 
 
 def main_test(event, context):
-    # run_delete_tables("hello", "world")
+    run_delete_tables("hello", "world")
 
-    # time.sleep(10)
+    time.sleep(3)
 
     run_financial_accounts("hello", "world")
 
