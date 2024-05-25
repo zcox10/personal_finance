@@ -1,6 +1,5 @@
 import time
 import pandas as pd
-from google.api_core.exceptions import NotFound
 from utils.bq_utils import BqUtils
 from jobs.bq_table_schemas import BqTableSchemas
 

@@ -1,8 +1,9 @@
 import json
 from datetime import date
+import pandas as pd
+import logging
 from utils.bq_utils import BqUtils
 from jobs.bq_table_schemas import BqTableSchemas
-
 from plaid.exceptions import ApiException
 from plaid.configuration import Configuration
 from plaid.api_client import ApiClient
@@ -11,6 +12,7 @@ from plaid.model.country_code import CountryCode
 from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
 from plaid.model.accounts_get_request import AccountsGetRequest
+from plaid.model.item_get_request import ItemGetRequest
 from plaid.model.investments_holdings_get_request import InvestmentsHoldingsGetRequest
 from plaid.model.investments_transactions_get_request import InvestmentsTransactionsGetRequest
 from plaid.model.investments_transactions_get_request_options import InvestmentsTransactionsGetRequestOptions
@@ -69,7 +71,28 @@ class PlaidUtils:
             return response.to_dict()
 
         except ApiException as e:
-            return json.loads(e.body)
+            logging.error("\n" + str(e))
+            return e
+
+    def get_item(self, access_token):
+        """
+        Get item associated with a Plaid access token.
+
+        Args:
+            access_token (str): Access token for Plaid API authentication.
+
+        Returns:
+            dict: Details of the accounts.
+        """
+
+        try:
+            request = ItemGetRequest(access_token=access_token)
+            response = self.plaid_client.item_get(request)
+            return response.to_dict()
+
+        except ApiException as e:
+            logging.error("\n" + str(e))
+            return e
 
     def get_accounts(self, access_token):
         """
@@ -89,52 +112,43 @@ class PlaidUtils:
             return response.to_dict()
 
         except ApiException as e:
-            return json.loads(e.body)
+            logging.error("\n" + str(e))
+            return e
 
-    def get_access_tokens(self, products=[]):
+    def get_items_by_access_token(self, access_tokens, products=[]):
         """
         Gather all Plaid access tokens and items into a df. Used in create_cursors_bq_table()
 
         Args:
-            product_filters (list): A list of products to filter for (e.g. transactions, investments)
+            access_tokens (list): A list of access_tokens to check for
+            products (list): A list of products to filter for (e.g. transactions, investments)
 
         Returns:
             pandas.DataFrame: Details of the items.
         """
 
-        # get BQ schema for financial_accounts table
-        financial_accounts_bq = self.__bq.update_table_schema_latest_partition(
-            schema=self.__bq_tables.financial_accounts_YYYYMMDD()
+        item_ids = []
+        item_access_tokens = []
+        for token in access_tokens:
+            item_dict = self.get_item(token)
+            item_products = item_dict["item"]["products"]
+            item_id = item_dict["item"]["item_id"]
+
+            has_product = False
+            for p in products:
+                if p in item_products:
+                    has_product = True
+
+            if has_product:
+                item_ids.append(item_id)
+                item_access_tokens.append(token)
+
+        return pd.DataFrame(
+            {
+                "item_id": pd.Series(item_ids, dtype="str"),
+                "access_token": pd.Series(item_access_tokens, dtype="str"),
+            }
         )
-
-        if not self.__bq.does_bq_table_exist(
-            financial_accounts_bq["project_id"], financial_accounts_bq["dataset_id"], financial_accounts_bq["table_id"]
-        ):
-            print(f"`{financial_accounts_bq['full_table_name']}` does not exist!")
-            return None
-
-        # if products specified, only pull specified accounts from a designated product
-        # else, return all plaid items + access_tokens
-        if len(products) != 0:
-            products_filter = '"' + '", "'.join(products) + '"'
-            where_clause = f"""
-            WHERE 
-              account_source = "PLAID"
-              AND EXISTS(SELECT 1 FROM UNNEST(products) p WHERE p IN ({products_filter}))
-            """
-        else:
-            where_clause = "WHERE account_source = 'PLAID'"
-
-        # generate query to pull access_token and item_id, then return as a df
-        query = f"""
-        SELECT DISTINCT
-          access_token,
-          item_id
-        FROM `{financial_accounts_bq["full_table_name"]}`
-        {where_clause}
-        """
-
-        return self.__bq.query(query)
 
     def remove_item(self, access_token):
         try:
@@ -143,7 +157,8 @@ class PlaidUtils:
             return response
 
         except ApiException as e:
-            return json.loads(e.body)
+            logging.error("\n" + str(e))
+            return e
 
     def get_transactions_data(self, access_token, next_cursor, add_test_transaction):
         """
