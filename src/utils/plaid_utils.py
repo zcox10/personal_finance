@@ -1,10 +1,7 @@
-import json
 from datetime import date
 import pandas as pd
-import logging
 from utils.bq_utils import BqUtils
 from jobs.bq_table_schemas import BqTableSchemas
-from plaid.exceptions import ApiException
 from plaid.configuration import Configuration
 from plaid.api_client import ApiClient
 from plaid.api import plaid_api
@@ -59,20 +56,14 @@ class PlaidUtils:
         Returns:
             dict: Details of the institution.
         """
+        request = InstitutionsGetByIdRequest(
+            institution_id=institution_id,
+            country_codes=list(map(lambda x: CountryCode(x), plaid_country_codes)),
+        )
 
-        try:
-            request = InstitutionsGetByIdRequest(
-                institution_id=institution_id,
-                country_codes=list(map(lambda x: CountryCode(x), plaid_country_codes)),
-            )
+        response = self.plaid_client.institutions_get_by_id(request)
 
-            response = self.plaid_client.institutions_get_by_id(request)
-
-            return response.to_dict()
-
-        except ApiException as e:
-            logging.error("\n" + str(e))
-            return e
+        return response.to_dict()
 
     def get_item(self, access_token):
         """
@@ -85,14 +76,9 @@ class PlaidUtils:
             dict: Details of the accounts.
         """
 
-        try:
-            request = ItemGetRequest(access_token=access_token)
-            response = self.plaid_client.item_get(request)
-            return response.to_dict()
-
-        except ApiException as e:
-            logging.error("\n" + str(e))
-            return e
+        request = ItemGetRequest(access_token=access_token)
+        response = self.plaid_client.item_get(request)
+        return response.to_dict()
 
     def get_accounts(self, access_token):
         """
@@ -106,14 +92,9 @@ class PlaidUtils:
             dict: Details of the accounts.
         """
 
-        try:
-            request = AccountsGetRequest(access_token=access_token)
-            response = self.plaid_client.accounts_get(request)
-            return response.to_dict()
-
-        except ApiException as e:
-            logging.error("\n" + str(e))
-            return e
+        request = AccountsGetRequest(access_token=access_token)
+        response = self.plaid_client.accounts_get(request)
+        return response.to_dict()
 
     def get_items_by_access_token(self, access_tokens, products=[]):
         """
@@ -151,14 +132,9 @@ class PlaidUtils:
         )
 
     def remove_item(self, access_token):
-        try:
-            request = ItemRemoveRequest(access_token=access_token)
-            response = self.plaid_client.item_remove(request)
-            return response
-
-        except ApiException as e:
-            logging.error("\n" + str(e))
-            return e
+        request = ItemRemoveRequest(access_token=access_token)
+        response = self.plaid_client.item_remove(request)
+        return response
 
     def get_transactions_data(self, access_token, next_cursor, add_test_transaction):
         """

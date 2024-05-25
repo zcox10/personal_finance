@@ -1,4 +1,3 @@
-import time
 import pandas as pd
 from utils.bq_utils import BqUtils
 from jobs.bq_table_schemas import BqTableSchemas

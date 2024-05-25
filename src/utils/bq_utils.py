@@ -1,7 +1,6 @@
 import json
 import time
 import sys
-import logging
 from datetime import datetime as dt, timezone
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
@@ -54,7 +53,7 @@ class BqUtils:
         elif partition_format == "YYYYMMDDHH" or partition_format == "YYYYMMDDTHH":
             return dt.now(timezone.utc) + relativedelta(hours=offset)
         else:
-            logging.error("\nMust input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
+            print("\nMust input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
             return
 
     def get_partition_date(self, offset, partition_format):
@@ -83,7 +82,7 @@ class BqUtils:
         elif partition_format == "YYYYMMDDTHH":
             return date_utc.strftime("%Y%m%dT%H")
         else:
-            logging.error("\nMust input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
+            print("\nMust input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
             return
 
     def get_bq_client(self):
@@ -310,7 +309,8 @@ class BqUtils:
             if "Not found" in str(e):
                 return False  # Table does not exist
             else:
-                logging.error("\n" + str(e))
+                print("\n" + str(e))
+                sys.exit(1)
 
     def check_dependencies(self, table_list, offset):
         """
@@ -324,7 +324,7 @@ class BqUtils:
             None
         """
 
-        logging.info("Checking BQ table dependencies...")
+        print("Checking BQ table dependencies...")
 
         # update table names from {table_name}_YYYYMMDD to specific table name based on "offset" e.g. {table_name}_20240401
         updated_tables = self.update_many_table_partitions(table_list, offset)
@@ -351,7 +351,7 @@ class BqUtils:
                 print("BQ table dependencies passed!\n")
 
             if count >= 10:
-                logging.error("\nChecked table dependencies 10 times, exiting.")
+                print("\nChecked table dependencies 10 times, exiting.")
 
     def load_df_to_bq(self, df, full_table_name, write_disposition):
         """
@@ -543,6 +543,7 @@ class BqUtils:
             print(f"ERROR: The table, `{full_table_name}`, was not found.")
         except Exception as e:
             print("ERROR:", e)
+            sys.exit(1)
 
     def query(self, query):
         """
@@ -580,7 +581,7 @@ class BqUtils:
             if write_disposition == "WRITE_TRUNCATE":
                 self.delete_bq_table(project_id, dataset_id, table_id, confirm=False)
             else:
-                logging.error(f"\n`{self.bq_client.project}.{dataset_id}.{table_id}` already exists")
+                print(f"\n`{self.bq_client.project}.{dataset_id}.{table_id}` already exists")
 
         # Define your BigQuery table
         table = bigquery.Table(

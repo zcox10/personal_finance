@@ -1,9 +1,7 @@
 import subprocess
-import logging
 from google.cloud import pubsub_v1
 from google.cloud import scheduler_v1
 from google.cloud import functions_v2
-from google.cloud.functions_v1.types import ListFunctionsRequest
 from google.protobuf import duration_pb2
 from utils.bq_utils import BqUtils
 from jobs.cloud_schemas import CloudSchemas
@@ -27,7 +25,7 @@ class GcpUtils:
             if "Resource not found" in str(e):
                 return False
             else:
-                logging.error("\n" + str(e))
+                print("\n" + str(e))
 
     def list_pubsub_topics(self, project_id):
         project_path = f"projects/{project_id}"
