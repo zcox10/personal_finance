@@ -1,5 +1,6 @@
 import time
 import pandas as pd
+import logging
 from google.api_core.exceptions import NotFound
 from utils.bq_utils import BqUtils
 from jobs.bq_table_schemas import BqTableSchemas
@@ -39,7 +40,6 @@ class FinancialAccounts:
         institution_ids = []
         institution_names = []
         balances = []
-        access_tokens = []
         update_types = []
         consent_expiration_times = []
         products = []
@@ -59,7 +59,6 @@ class FinancialAccounts:
             account_official_names.append(r["official_name"])
             account_types.append(r["type"])
             account_subtypes.append(r["subtype"])
-            access_tokens.append(access_token)
 
             # order balance dict in preferred order
             balances.append(
@@ -110,7 +109,6 @@ class FinancialAccounts:
                 "institution_id": pd.Series(institution_ids, dtype="str"),
                 "institution_name": pd.Series(institution_names, dtype="str"),
                 "balance": balances,
-                "access_token": pd.Series(access_tokens, dtype="str"),
                 "update_type": pd.Series(update_types, dtype="str"),
                 "consent_expiration_time": pd.Series(consent_expiration_times, dtype="datetime64[ns]"),
                 "products": products,
@@ -188,7 +186,7 @@ class FinancialAccounts:
             print(f"`{full_table_name}` does not exist!")
             return False
         except Exception as e:
-            print(e)
+            logging.error("\n" + str(e))
             return False
 
     def add_plaid_accounts_to_bq(self, access_tokens, plaid_country_codes, offset):

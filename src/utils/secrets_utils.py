@@ -49,12 +49,11 @@ class SecretsUtils:
 
         return secrets_list
 
-    def create_secrets_dict(self, job_type, secret_type, project_id="zsc-personal", version_id="latest"):
+    def create_secrets_dict(self, secret_type, project_id="zsc-personal", version_id="latest"):
         """
-        Create a dictionary containing secrets for a specific job.
+        Create a dictionary containing secrets.
 
         Args:
-            job_type (str): The name of the job for which secrets are needed.
             secret_type (str): The type of secret to use.
             project_id (str, optional): The ID of the Google Cloud project. Defaults to "zsc-personal".
             version_id (str, optional): The version of the secret to retrieve. Defaults to "latest".
@@ -63,25 +62,17 @@ class SecretsUtils:
             dict: A dictionary containing the secrets needed for the specified job.
         """
 
-        # plaid_investments and plaid_transactions only request plaid client/secret
-        if job_type == "main_plaid_investments" or job_type == "main_plaid_transactions":
-            secrets = ["PLAID_CLIENT_ID", f"PLAID_SECRET_{secret_type}"]
-
-        # financial_accounts requires all access tokens in addition to client/secret
-        elif job_type == "main_financial_accounts":
-            secrets = [
-                "PLAID_CLIENT_ID",
-                f"PLAID_SECRET_{secret_type}",
-                "PLAID_TOKEN_BOA",
-                "PLAID_TOKEN_CHASE",
-                "PLAID_TOKEN_ETRADE",
-                "PLAID_TOKEN_FUNDRISE",
-                "PLAID_TOKEN_SCHWAB",
-                "PLAID_TOKEN_VANGUARD",
-            ]
-        else:
-            print("No other secrets to return")
-            return
+        # secrets to gather
+        secrets = [
+            "PLAID_CLIENT_ID",
+            f"PLAID_SECRET_{secret_type}",
+            "PLAID_TOKEN_BOA",
+            "PLAID_TOKEN_CHASE",
+            "PLAID_TOKEN_ETRADE",
+            "PLAID_TOKEN_FUNDRISE",
+            "PLAID_TOKEN_SCHWAB",
+            "PLAID_TOKEN_VANGUARD",
+        ]
 
         secrets_dict = {}
         for secret in secrets:

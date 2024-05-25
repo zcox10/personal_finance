@@ -54,7 +54,7 @@ class BqUtils:
         elif partition_format == "YYYYMMDDHH" or partition_format == "YYYYMMDDTHH":
             return dt.now(timezone.utc) + relativedelta(hours=offset)
         else:
-            logging.error("Must input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
+            logging.error("\nMust input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
             return
 
     def get_partition_date(self, offset, partition_format):
@@ -83,7 +83,7 @@ class BqUtils:
         elif partition_format == "YYYYMMDDTHH":
             return date_utc.strftime("%Y%m%dT%H")
         else:
-            logging.error("Must input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
+            logging.error("\nMust input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
             return
 
     def get_bq_client(self):
@@ -310,7 +310,7 @@ class BqUtils:
             if "Not found" in str(e):
                 return False  # Table does not exist
             else:
-                logging.error(str(e))
+                logging.error("\n" + str(e))
 
     def check_dependencies(self, table_list, offset):
         """
@@ -351,7 +351,7 @@ class BqUtils:
                 print("BQ table dependencies passed!\n")
 
             if count >= 10:
-                logging.error(RuntimeError("Checked table dependencies 10 times, exiting."))
+                logging.error("\nChecked table dependencies 10 times, exiting.")
 
     def load_df_to_bq(self, df, full_table_name, write_disposition):
         """
@@ -580,7 +580,7 @@ class BqUtils:
             if write_disposition == "WRITE_TRUNCATE":
                 self.delete_bq_table(project_id, dataset_id, table_id, confirm=False)
             else:
-                logging.error(RuntimeError(f"`{self.bq_client.project}.{dataset_id}.{table_id}` already exists"))
+                logging.error(f"\n`{self.bq_client.project}.{dataset_id}.{table_id}` already exists")
 
         # Define your BigQuery table
         table = bigquery.Table(

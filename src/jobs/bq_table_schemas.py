@@ -169,12 +169,6 @@ class BqTableSchemas:
                 ],
             },
             {
-                "name": "access_token",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
                 "name": "update_type",
                 "type": "STRING",
                 "mode": "NULLABLE",
@@ -225,12 +219,6 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "access_token",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
                 "name": "next_cursor",
                 "type": "STRING",
                 "mode": "NULLABLE",
@@ -258,12 +246,6 @@ class BqTableSchemas:
         table_schema = [
             {
                 "name": "item_id",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "access_token",
                 "type": "STRING",
                 "mode": "NULLABLE",
                 "description": "",

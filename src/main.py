@@ -14,15 +14,18 @@ from utils.plaid_transactions import PlaidTransactions
 from utils.plaid_investments import PlaidInvestments
 
 # SECRETS
-secrets = SecretsUtils().create_secrets_dict(job_type="main_financial_accounts", secret_type="DEV")
+# secrets = SecretsUtils().create_secrets_dict(secret_type="PROD")
+secrets = SecretsUtils().create_secrets_dict(secret_type="DEV")
 PLAID_CLIENT_ID = secrets["PLAID_CLIENT_ID"]
+# PLAID_SECRET = secrets["PLAID_SECRET_PROD"]
 PLAID_SECRET = secrets["PLAID_SECRET_DEV"]
 PLAID_ACCESS_TOKENS = SecretsUtils().get_access_token_secrets(secrets)
+# PLAID_HOST = plaid.Environment.Production
 PLAID_HOST = plaid.Environment.Development
 
 # CONSTANTS: general
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
-OFFSET = 0
+OFFSET = 10
 
 # CONSTANTS: plaid transactions
 BACKFILL = False
@@ -84,14 +87,14 @@ def run_plaid_transactions(event, context):
     # only create new financial_accounts table and plaid_cursors_YYYYMMDD table if starting with initial backfill
     if BACKFILL:
         # Create a new plaid_cursors_YYYYMMDD table with access_token, item_id, and next_cursor
-        plaid_transactions.create_cursors_bq_table(OFFSET, WRITE_DISPOSITION)
+        plaid_transactions.create_cursors_bq_table(PLAID_ACCESS_TOKENS, OFFSET, WRITE_DISPOSITION)
 
     # create empty temp cursor table to upload cursors to for the current run.
     # When job finishes running, this table will become the latest plaid_cursors_YYYYMMDD partitions
     plaid_transactions.create_temp_cursors_bq_table(write_disposition="WRITE_TRUNCATE")
 
     # grab latest cursors for each access token / item
-    latest_cursors_df = plaid_transactions.get_latest_cursors()
+    latest_cursors_df = plaid_transactions.get_latest_cursors(PLAID_ACCESS_TOKENS)
 
     # Run create_transactions_df() to store added/modified transactions in transactions_df and removed transactions in removed_df
     transactions_df_list, removed_df_list = plaid_transactions.generate_transactions_df_list(
@@ -121,7 +124,9 @@ def run_plaid_investments(event, context):
     bq.check_dependencies(table_list, OFFSET)
 
     # get investments access_tokens
-    access_tokens = list(plaid_client.get_access_tokens(products=["investments"])["access_token"].unique())
+    access_tokens = list(
+        plaid_client.get_items_by_access_token(PLAID_ACCESS_TOKENS, products=["investments"])["access_token"].unique()
+    )
 
     # generate investment dfs for investment holdings and investment transactions
     holdings_df_list, investment_transactions_df_list = plaid_investments.generate_investments_dfs_list(
@@ -160,21 +165,25 @@ def run_delete_tables(event, context):
         )
 
 
-# def main_test(event, context):
-#     run_delete_tables("hello", "world")
+def main_test(event, context):
+    # run_delete_tables("hello", "world")
 
-#     time.sleep(10)
+    # time.sleep(10)
 
-#     run_financial_accounts("hello", "world")
+    run_financial_accounts("hello", "world")
 
-#     time.sleep(10)
+    time.sleep(3)
 
-#     run_plaid_investments("hello", "world")
+    run_budget_values(event, context)
 
-#     time.sleep(10)
+    time.sleep(3)
 
-#     run_plaid_transactions("hello", "world")
+    run_plaid_investments("hello", "world")
+
+    time.sleep(3)
+
+    run_plaid_transactions("hello", "world")
 
 
-# if __name__ == "__main__":
-#     main_test("hello", "world")
+if __name__ == "__main__":
+    main_test("hello", "world")

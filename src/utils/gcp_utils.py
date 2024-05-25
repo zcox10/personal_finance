@@ -27,7 +27,7 @@ class GcpUtils:
             if "Resource not found" in str(e):
                 return False
             else:
-                logging.error(str(e))
+                logging.error("\n" + str(e))
 
     def list_pubsub_topics(self, project_id):
         project_path = f"projects/{project_id}"

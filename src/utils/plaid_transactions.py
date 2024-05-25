@@ -10,7 +10,25 @@ class PlaidTransactions:
         self.__plaid_client = plaid_client
         self.__bq_tables = BqTableSchemas()
 
-    def get_latest_cursors(self):
+    def __create_items_dict(self, access_tokens):
+        """
+        Create a dict where each Plaid item is key and value is the associated access token
+
+        Args:
+            access_tokens (list): list of access tokens.
+        Returns:
+            dict: each Plaid item is key and value is the associated access token
+        """
+
+        access_tokens_dict = {}
+
+        for token in access_tokens:
+            item_dict = self.__plaid_client.get_item(token)
+            access_tokens_dict[item_dict["item"]["item_id"]] = token
+
+        return access_tokens_dict
+
+    def get_latest_cursors(self, access_tokens):
         """
         Get the latest cursor for each access token and store in dataframe
 
@@ -19,6 +37,8 @@ class PlaidTransactions:
         Returns:
             pandas.DataFrame: Three fields -- (access_token, item_id, next_cursor)
         """
+
+        access_tokens_dict = self.__create_items_dict(access_tokens)
 
         # define the table where cursors are stored
         plaid_cursors_bq = self.__bq.update_table_schema_latest_partition(
@@ -34,16 +54,20 @@ class PlaidTransactions:
         # query to grab each access_token / item_id utilizing "transactions" product and their associated latest cursor
         cursors_query = f"""
         SELECT DISTINCT 
-          access_token,
+          CAST(NULL AS STRING) AS access_token,
           item_id,
           next_cursor
         FROM `{plaid_cursors_bq['full_table_name']}`
         """
 
         cursors_df = self.__bq.query(cursors_query)
+
+        for i, row in cursors_df.iterrows():
+            row["access_token"] = access_tokens_dict[row["item_id"]]
+
         return cursors_df
 
-    def create_cursors_bq_table(self, offset, write_disposition):
+    def create_cursors_bq_table(self, access_tokens, offset, write_disposition):
         """
         Creates an empty BigQuery table to store Plaid cursors. It retrieves Plaid access tokens
         and associated item IDs, then adds an empty cursor as the next cursor value to start fresh.
@@ -73,7 +97,7 @@ class PlaidTransactions:
         )
 
         # get plaid accounts. Stores access_token, item_id, and next cursor in df df
-        accounts_df = self.__plaid_client.get_access_tokens(products=["transactions"])
+        accounts_df = self.__plaid_client.get_items_by_access_token(access_tokens, products=["transactions"])
 
         # add empty cursor as next_cursor (fresh start)
         accounts_df["next_cursor"] = ""
@@ -81,13 +105,12 @@ class PlaidTransactions:
         # table should already be empty, so use WRITE_TRUNCATE
         return self.__bq.load_df_to_bq(accounts_df, plaid_cursors_bq["full_table_name"], "WRITE_TRUNCATE")
 
-    def add_cursor_to_bq(self, item_id, access_token, next_cursor, full_table_name):
+    def add_cursor_to_bq(self, item_id, next_cursor, full_table_name):
         """
         Updates a Plaid access token / item with the latest Plaid cursor
 
         Args:
             item_id (str): The item originating from Plaid
-            access_token (str): The access_token associated with a Plaid item
             next_cursor (str): The latest cursor from a Transactions Sync pull
             full_table_name (str): The full destination table {project_id}.{dataset_id}.{table_id} to upload the cursor entry to
 
@@ -95,8 +118,8 @@ class PlaidTransactions:
             status (Any): The status of the BQ upload
         """
 
-        # create df storing an item_id, access_token, and next_cursor
-        cursors_df = pd.DataFrame({"item_id": [item_id], "access_token": [access_token], "next_cursor": [next_cursor]})
+        # create df storing an item_id and next_cursor
+        cursors_df = pd.DataFrame({"item_id": [item_id], "next_cursor": [next_cursor]})
 
         # Load the record to cursors temp BQ table. "WRITE_APPEND" because there are multiple individual uploads
         return self.__bq.load_df_to_bq(cursors_df, full_table_name, "WRITE_APPEND")
@@ -144,8 +167,8 @@ class PlaidTransactions:
             SELECT p.*
             FROM `{plaid_cursors_bq_latest["full_table_name"]}` p
             LEFT JOIN temp_plaid_cursors t
-            USING (access_token, item_id)
-            WHERE t.access_token IS NULL
+            USING (item_id)
+            WHERE t.item_id IS NULL
             )
             SELECT *
             FROM temp_plaid_cursors
@@ -629,7 +652,6 @@ class PlaidTransactions:
         # add cursor to temp_cursors table
         self.add_cursor_to_bq(
             item_id=item_id,
-            access_token=access_token,
             next_cursor=latest_cursor,
             full_table_name=temp_plaid_cursors_bq["full_table_name"],
         )
