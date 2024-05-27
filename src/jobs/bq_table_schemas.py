@@ -1101,3 +1101,257 @@ class BqTableSchemas:
         }
 
         return schema
+
+    def personal_finance_tableau_YYYYMMDD(self):
+        project_id = "zsc-personal"
+        dataset_id = "personal_finance"
+        table_id = "personal_finance_tableau_YYYYMMDD"
+        full_table_name = project_id + "." + dataset_id + "." + table_id
+        table_description = "Stores data for personal finance dashboard"
+        table_schema = [
+            {
+                "name": "partition_date",
+                "type": "DATE",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "metric_category",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "item_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "account_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "account_mask",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "account_name",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "account_official_name",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "account_type",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "account_subtype",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "institution_name",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "transaction_id",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "transaction_date",
+                "type": "DATE",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "transaction_month",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "transaction_type",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "budget_amount",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "budget_amount_abs",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "transactions_count",
+                "type": "INTEGER",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "actual_amount",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "actual_amount_abs",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "currency_code",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "category_raw",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "subcategory_raw",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "category_updated",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "subcategory_updated",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "category",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "subcategory",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "detail_category",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "full_category",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "payment_channel",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "merchant_name",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "merchant_name_raw",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "counterparty_name_raw",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "name_raw",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "merchant_type",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "institution_price",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "quantity",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "cost_basis",
+                "type": "FLOAT",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "security_type",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "ticker_symbol",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+        ]
+
+        schema = {
+            "project_id": project_id,
+            "dataset_id": dataset_id,
+            "table_id": table_id,
+            "full_table_name": full_table_name,
+            "table_description": table_description,
+            "table_schema": table_schema,
+        }
+
+        return schema

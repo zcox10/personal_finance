@@ -1,0 +1,371 @@
+WITH
+  get_accounts AS (
+  SELECT 
+    PARSE_DATE("%Y%m%d", _TABLE_SUFFIX) AS partition_date,
+    item_id,
+    account_id,
+    account_mask,
+    account_name,
+    account_official_name,
+    account_type,
+    account_subtype,
+    institution_name,
+    PARSE_DATE("%Y%m%d", _TABLE_SUFFIX) AS transaction_date,
+    IF(account_type = "credit", balance.current * -1, balance.current) AS actual_amount,
+    ABS(balance.current) AS actual_amount_abs,
+    balance.currency_code
+  FROM `zsc-personal.personal_finance.financial_accounts_*`
+  )
+  , accounts_distinct AS (
+  SELECT
+    item_id,
+    account_id,
+    account_mask,
+    account_name,
+    account_official_name,
+    account_type,
+    account_subtype,
+    institution_name,
+  FROM get_accounts
+  QUALIFY ROW_NUMBER() OVER(PARTITION BY item_id, account_id ORDER BY transaction_date DESC) = 1
+  )
+  , get_investments AS (
+  SELECT
+    PARSE_DATE("%Y%m%d", _TABLE_SUFFIX) AS partition_date,
+    item_id,
+    account_id,
+    cost_basis,
+    institution_price,
+    quantity,
+    institution_price_date,
+    institution_value,
+    currency_code,
+    security.type AS security_type,
+    security.ticker_symbol,
+  FROM
+    `zsc-personal.personal_finance.plaid_investment_holdings_*`
+  )
+  , join_investments AS (
+  SELECT 
+    i.*,
+    acct.* EXCEPT(item_id, account_id)
+  FROM get_investments i
+  LEFT JOIN accounts_distinct acct
+  USING (item_id, account_id)
+  )
+  , removed_transactions AS (
+  SELECT *
+  FROM `zsc-personal.personal_finance.plaid_removed_transactions_*`
+  )
+  , get_transactions AS (
+  SELECT 
+    PARSE_DATE("%Y%m%d", _TABLE_SUFFIX) AS partition_date,
+    item_id,
+    account_id,
+    transaction_id,
+    transaction_date,
+    FORMAT_DATE("%Y-%m", DATE_TRUNC(transaction_date, MONTH)) AS transaction_month,
+    IF(amount > 0, "DEBIT", "CREDIT") AS transaction_type,
+    amount * -1 AS actual_amount,
+    ABS(amount) AS actual_amount_abs,
+    currency_code,
+
+    personal_finance_category.primary AS category_raw,
+    personal_finance_category.detailed AS subcategory_raw,
+
+    CASE 
+      WHEN merchant.merchant_name = "Spotify" AND amount < 0 THEN "INCOME"
+      WHEN merchant.merchant_name = "Coinbase" AND amount < 0 THEN "TRANSFER_IN"
+      WHEN merchant.merchant_name = "Downtown Tempe Authority" THEN "TRANSPORTATION"
+      WHEN REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in") THEN "RENT_AND_UTILITIES"
+      ELSE personal_finance_category.primary
+    END AS category_updated,
+
+    CASE 
+      WHEN merchant.merchant_name = "Spotify" AND amount < 0 THEN "INCOME_WAGES"
+      WHEN merchant.merchant_name = "Coinbase" AND amount < 0 THEN "TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS"
+      WHEN merchant.merchant_name = "Downtown Tempe Authority" THEN "TRANSPORTATION_PARKING"
+      WHEN REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in") THEN "RENT_AND_UTILITIES_RENT"
+      WHEN personal_finance_category.detailed = "TRANSFER_OUT_ACCOUNT_TRANSFER" AND merchant.merchant_name NOT IN ("Venmo", "Zelle", "Bank of America", "Chase Bank") THEN "TRANSFER_OUT_OTHER_TRANSFER_OUT"
+      ELSE personal_finance_category.detailed
+    END AS subcategory_updated,
+
+    payment_channel,
+
+    COALESCE(
+      merchant.merchant_name,
+      counterparties[SAFE_OFFSET(0)].name,
+      CASE
+        WHEN REGEXP_CONTAINS(merchant.name, r"DES:") THEN REGEXP_EXTRACT(merchant.name, r"^(.*?)(?: DES:|$)")
+        WHEN REGEXP_CONTAINS(merchant.name, r"WITHDRWL") THEN REGEXP_EXTRACT(merchant.name, r'WITHDRWL\s*(.*?)\s*-')
+        WHEN REGEXP_CONTAINS(merchant.name, r"Online Banking transfer") AND institution_name = "Bank of America" THEN "Bank of America"
+        WHEN REGEXP_CONTAINS(merchant.name, r"Payment Thank You") AND institution_name = "Chase" THEN "Chase Bank"
+        ELSE merchant.name
+      END
+    ) AS merchant_name,
+
+    merchant.merchant_name AS merchant_name_raw,
+    counterparties[SAFE_OFFSET(0)].name AS counterparty_name_raw,
+    merchant.name AS name_raw,
+
+    counterparties[SAFE_OFFSET(0)].type AS merchant_type,
+    acct.* EXCEPT(item_id, account_id)
+  FROM `zsc-personal.personal_finance.plaid_transactions_*`
+  LEFT JOIN removed_transactions r
+  USING (item_id, account_id, transaction_id)
+  LEFT JOIN accounts_distinct acct
+  USING (item_id, account_id)
+  WHERE
+    -- if removed transaction is present and removed date >= transaction_date, remove the transaciton
+    -- else, even if removed transaction is present and date_removed < transaction_date, keep transaction
+    IF(r.transaction_id IS NOT NULL, r.date_removed < transaction_date, TRUE)
+
+    -- remove pending transactions
+    AND NOT is_pending
+  
+  -- remove duplicates
+  QUALIFY ROW_NUMBER() OVER(PARTITION BY transaction_id ORDER BY COALESCE(TIMESTAMP(transaction_datetime), TIMESTAMP(transaction_date)) DESC ) = 1
+  )
+  , budget_values AS (
+  SELECT 
+    FORMAT_DATE("%Y-%m", PARSE_DATE("%Y%m", _TABLE_SUFFIX)) AS transaction_month,
+    *
+  FROM `zsc-personal.budget_values.budget_values_*`
+  )
+  , add_transaction_categories AS (
+  SELECT 
+    g.*,
+    b.category,
+    
+    CASE
+      WHEN b.category = "Personal Investments" AND merchant_name IN ("Coinbase", "Gemini", "Binance.us") THEN "Crypto"
+      WHEN b.category = "Personal Investments" AND merchant_name IN ("Fundrise Real Estate") THEN "Real Estate"
+      WHEN b.category = "Personal Investments" AND merchant_name IN ("Charles Schwab") THEN "Stocks"
+      WHEN b.category = "Personal Investments" THEN "Other"
+      ELSE b.subcategory
+    END AS subcategory,
+
+    b.detail_category,
+  FROM get_transactions g
+  LEFT JOIN budget_values b
+  ON 
+    g.category_updated = b.category_raw
+    AND g.subcategory_updated = b.subcategory_raw
+    AND g.transaction_month = b.transaction_month
+  )
+  , budget_values_agg AS (
+  SELECT 
+    transaction_month,
+    category,
+    subcategory,
+    SUM(budget_amount) AS budget_amount,
+    ABS(SUM(budget_amount)) AS budget_amount_abs
+  FROM budget_values
+  GROUP BY 1,2,3
+  )
+  , transactions_agg AS (
+  SELECT 
+    transaction_month,
+    category,
+    subcategory,
+    SUM(actual_amount) AS actual_amount,
+    ABS(SUM(actual_amount)) AS actual_amount_abs,
+    COUNT(DISTINCT transaction_id) AS transactions_count
+  FROM add_transaction_categories
+  GROUP BY 1,2,3
+  )
+  , join_transactions_agg AS (
+  SELECT 
+    transaction_month,
+    category,
+    subcategory,
+    budget_amount,
+    budget_amount_abs,
+    IFNULL(actual_amount, 0) AS actual_amount,
+    IFNULL(actual_amount_abs, 0) AS actual_amount_abs,
+    IFNULL(transactions_count, 0) AS transactions_count
+  FROM budget_values_agg
+  LEFT JOIN transactions_agg
+  USING (transaction_month, category, subcategory)
+  WHERE 
+    budget_amount_abs > 0
+    OR actual_amount_abs > 0
+  )
+  , union_data AS (
+  SELECT 
+    CURRENT_DATE() AS partition_date,
+    "TRANSACTIONS_AGG" AS metric_category,
+    CAST(NULL AS STRING) AS item_id,
+    CAST(NULL AS STRING) AS account_id,
+    CAST(NULL AS STRING) AS account_mask,
+    CAST(NULL AS STRING) AS account_name,
+    CAST(NULL AS STRING) AS account_official_name,
+    CAST(NULL AS STRING) AS account_type,
+    CAST(NULL AS STRING) AS account_subtype,
+    CAST(NULL AS STRING) AS institution_name,
+    CAST(NULL AS STRING) AS transaction_id,
+    CAST(NULL AS DATE) AS transaction_date,
+    transaction_month,
+    CAST(NULL AS STRING) AS transaction_type,
+    budget_amount,
+    budget_amount_abs,
+    transactions_count,
+    actual_amount,
+    actual_amount_abs,
+    CAST(NULL AS STRING) AS currency_code,
+    CAST(NULL AS STRING) AS category_raw,
+    CAST(NULL AS STRING) AS subcategory_raw,
+    CAST(NULL AS STRING) AS category_updated,
+    CAST(NULL AS STRING) AS subcategory_updated,
+    category,
+    subcategory,
+    CAST(NULL AS STRING) AS detail_category,
+    CONCAT(category, " - ", subcategory) AS full_category,
+    CAST(NULL AS STRING) AS payment_channel,
+    CAST(NULL AS STRING) AS merchant_name,
+    CAST(NULL AS STRING) AS merchant_name_raw,
+    CAST(NULL AS STRING) AS counterparty_name_raw,
+    CAST(NULL AS STRING) AS name_raw,
+    CAST(NULL AS STRING) AS merchant_type,
+    CAST(NULL AS FLOAT64) AS institution_price,
+    CAST(NULL AS FLOAT64) AS quantity,
+    CAST(NULL AS FLOAT64) cost_basis, 
+    CAST(NULL AS STRING) security_type,
+    CAST(NULL AS STRING) ticker_symbol
+  FROM join_transactions_agg
+
+  UNION ALL
+
+  SELECT 
+    partition_date,
+    "TRANSACTIONS" AS metric_category,
+    item_id,
+    account_id,
+    account_mask,
+    account_name,
+    account_official_name,
+    account_type,
+    account_subtype,
+    institution_name,
+    transaction_id,
+    transaction_date,
+    transaction_month,
+    transaction_type,
+
+    CAST(NULL AS FLOAT64) AS budget_amount,
+    CAST(NULL AS FLOAT64) AS budget_amount_abs,
+    CAST(NULL AS INT64) AS transactions_count,
+    actual_amount,
+    actual_amount_abs,
+    currency_code,
+    category_raw,
+    subcategory_raw,
+    category_updated,
+    subcategory_updated,
+    category,
+    subcategory,
+    detail_category,
+    CONCAT(category, " - ", subcategory, IF(detail_category IS NULL, "", CONCAT(" - ", detail_category))) AS full_category,
+    payment_channel,
+    merchant_name,
+    merchant_name_raw,
+    counterparty_name_raw,
+    name_raw,
+    merchant_type,
+    CAST(NULL AS FLOAT64) AS institution_price,
+    CAST(NULL AS FLOAT64) AS quantity,
+    CAST(NULL AS FLOAT64) cost_basis, 
+    CAST(NULL AS STRING) security_type,
+    CAST(NULL AS STRING) ticker_symbol
+  FROM add_transaction_categories
+
+  UNION ALL
+
+  SELECT 
+    partition_date,
+    "ACCOUNTS" AS metric_category,
+    item_id,
+    account_id,
+    account_mask,
+    account_name,
+    account_official_name,
+    account_type,
+    account_subtype,
+    institution_name,
+    CAST(NULL AS STRING) AS transaction_id,
+    transaction_date,
+    FORMAT_DATE("%Y-%m", DATE_TRUNC(transaction_date, MONTH)) AS transaction_month,
+    CAST(NULL AS STRING) AS transaction_type,
+    CAST(NULL AS FLOAT64) AS budget_amount,
+    CAST(NULL AS FLOAT64) AS budget_amount_abs,
+    CAST(NULL AS INT64) AS transactions_count,
+    actual_amount,
+    actual_amount_abs,
+    currency_code,
+    CAST(NULL AS STRING) AS category_raw,
+    CAST(NULL AS STRING) AS subcategory_raw,
+    CAST(NULL AS STRING) AS category_updated,
+    CAST(NULL AS STRING) AS subcategory_updated,
+    CAST(NULL AS STRING) AS category,
+    CAST(NULL AS STRING) AS subcategory,
+    CAST(NULL AS STRING) AS detail_category,
+    CAST(NULL AS STRING) AS full_category,
+    CAST(NULL AS STRING) AS payment_channel,
+    CAST(NULL AS STRING) AS merchant_name,
+    CAST(NULL AS STRING) AS merchant_name_raw,
+    CAST(NULL AS STRING) AS counterparty_name_raw,
+    CAST(NULL AS STRING) AS name_raw,
+    CAST(NULL AS STRING) AS merchant_type,
+    CAST(NULL AS FLOAT64) AS institution_price,
+    CAST(NULL AS FLOAT64) AS quantity,
+    CAST(NULL AS FLOAT64) cost_basis, 
+    CAST(NULL AS STRING) security_type,
+    CAST(NULL AS STRING) ticker_symbol
+  FROM get_accounts
+
+  UNION ALL
+
+  SELECT
+    partition_date,
+    "INVESTMENTS" AS metric_category,
+    item_id,
+    account_id,
+    account_mask,
+    account_name,
+    account_official_name,
+    account_type,
+    account_subtype,
+    institution_name,
+    CAST(NULL AS STRING) AS transaction_id,
+    institution_price_date AS transaction_date,
+    FORMAT_DATE("%Y-%m", DATE_TRUNC(institution_price_date, MONTH)) AS transaction_month,
+    CAST(NULL AS STRING) AS transaction_type,
+    CAST(NULL AS FLOAT64) AS budget_amount,
+    CAST(NULL AS FLOAT64) AS budget_amount_abs,
+    CAST(NULL AS INT64) AS transactions_count,
+    institution_value AS actual_amount,
+    ABS(institution_value) AS actual_amount_abs,
+    currency_code,
+    CAST(NULL AS STRING) AS category_raw,
+    CAST(NULL AS STRING) AS subcategory_raw,
+    CAST(NULL AS STRING) AS category_updated,
+    CAST(NULL AS STRING) AS subcategory_updated,
+    CAST(NULL AS STRING) AS category,
+    CAST(NULL AS STRING) AS subcategory,
+    CAST(NULL AS STRING) AS detail_category,
+    CAST(NULL AS STRING) AS full_category,
+    CAST(NULL AS STRING) AS payment_channel,
+    CAST(NULL AS STRING) AS merchant_name,
+    CAST(NULL AS STRING) AS merchant_name_raw,
+    CAST(NULL AS STRING) AS counterparty_name_raw,
+    CAST(NULL AS STRING) AS name_raw,
+    CAST(NULL AS STRING) AS merchant_type,
+    institution_price,
+    quantity,
+    cost_basis, 
+    security_type,
+    ticker_symbol
+  FROM join_investments
+  )
+SELECT *
+FROM union_data

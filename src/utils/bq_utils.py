@@ -599,7 +599,9 @@ class BqUtils:
 
         return create_table
 
-    def create_query_bq_table(self, query, destination_table, write_disposition):
+    def create_query_bq_table(
+        self, query, destination_table, write_disposition, renew_cache=True, table_description=None, table_schema=None
+    ):
         """
         Execute a SQL query on a BigQuery table and write the result to a new BigQuery table.
 
@@ -612,7 +614,40 @@ class BqUtils:
         Returns:
             google.cloud.bigquery.job.LoadJob: The job object representing the asynchronous query job.
         """
-        job_config = bigquery.QueryJobConfig(destination=destination_table, write_disposition=write_disposition)
+
+        job_config = bigquery.QueryJobConfig(
+            destination=destination_table, write_disposition=write_disposition, use_query_cache=renew_cache
+        )
 
         query_job = self.bq_client.query(query, job_config=job_config)
+
+        # Wait for the query to complete
+        query_job.result()
+
+        # Retrieve the created table
+        table = self.bq_client.get_table(destination_table)
+
+        # add description, if available
+        if table_description is not None:
+            table.description = table_description
+            table = self.bq_client.update_table(table, ["description"])
+
+        # add schema, if available
+        if table_schema is not None:
+            table.schema = table_schema
+            table = self.bq_client.update_table(table, ["schema"])
+
         return query_job
+
+    def sql_file_to_string(self, sql_path):
+        """
+        Converts a SQL file holding a SQL query to a string
+
+        Args:
+            sql_path (str): String containing a file path.
+
+        Returns:
+            String representation of a file's contents.
+        """
+        with open(sql_path, "r") as sql_file:
+            return sql_file.read()

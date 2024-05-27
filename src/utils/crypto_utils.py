@@ -7,9 +7,9 @@ class CryptoUtils:
     def __init__(self):
         pass
 
-    def btc_cost_basis(self, btc_address):
+    def btc_cost_basis(self, btc_address, api_key):
         # URL to get the transaction history of the BTC address
-        transactions_url = f"https://blockchain.info/rawaddr/{btc_address}"
+        transactions_url = f"https://blockchain.info/rawaddr/{btc_address}?api_code={api_key}"
 
         # Make the request to get transaction history
         response = requests.get(transactions_url)
@@ -28,7 +28,7 @@ class CryptoUtils:
         total_bought_btc = total_bought / 100000000
         return total_bought_btc
 
-    def get_btc_balance(self, btc_address):
+    def get_btc_balance(self, btc_address, api_key):
         """
         Retrieve the BTC balance of multiple BTC addresses
 
@@ -40,7 +40,7 @@ class CryptoUtils:
         """
 
         # URL for getting the balance of the BTC address
-        balance_url = f"https://blockchain.info/balance?active={btc_address}"
+        balance_url = f"https://blockchain.info/balance?active={btc_address}&api_code={api_key}"
 
         # Get the balance of the BTC address
         balance_response = requests.get(balance_url)
@@ -50,7 +50,7 @@ class CryptoUtils:
         balance_btc = balance_satoshis / 100000000
         return balance_btc
 
-    def get_btc_to_usd_exchange_rate(self):
+    def get_btc_to_usd_exchange_rate(self, api_key):
         """
         Retrieve the BTC to USD exchange rate
 
@@ -59,7 +59,7 @@ class CryptoUtils:
         """
 
         # URL for getting the BTC to USD exchange rate
-        exchange_rate_url = "https://blockchain.info/ticker"
+        exchange_rate_url = f"https://blockchain.info/ticker?api_code={api_key}"
 
         # Get the BTC to USD exchange rate
         exchange_rate_response = requests.get(exchange_rate_url)

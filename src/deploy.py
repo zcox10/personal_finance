@@ -11,6 +11,7 @@ financial_accounts = cs.financial_accounts()
 budget_values = cs.budget_values()
 plaid_transactions = cs.plaid_transactions()
 plaid_investments = cs.plaid_investments()
+personal_finance_queries = cs.personal_finance_queries()
 
 # jobs to run
 jobs = [
@@ -18,6 +19,7 @@ jobs = [
     budget_values,
     plaid_transactions,
     plaid_investments,
+    personal_finance_queries,
 ]
 
 for job in jobs:
