@@ -12,6 +12,7 @@ from utils.budget_values import BudgetValues
 from utils.financial_accounts import FinancialAccounts
 from utils.plaid_transactions import PlaidTransactions
 from utils.plaid_investments import PlaidInvestments
+from utils.query_jobs import QueryJobs
 
 # SECRETS
 secrets = SecretsUtils().create_secrets_dict(secret_type="PROD")
@@ -32,9 +33,9 @@ ADD_TEST_TRANSACTIONS = False  # to add a removed transaction or not in generate
 START_DATE = (  # if backfill, use 730 days ago as START_DATE. Else, use today
     (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
     if BACKFILL
-    else (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
+    else (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
 )
-END_DATE = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
+END_DATE = (datetime.now() - timedelta(days=6)).strftime("%Y-%m-%d")
 
 # initialize main clients
 bq_client = bigquery.Client()
@@ -143,6 +144,11 @@ def run_plaid_investments(event, context):
     print("SUCCESS: Plaid investment data uploaded to BQ")
 
 
+def run_personal_finance_queries(event, context):
+    query_jobs = QueryJobs(bq_client)
+    query_jobs.create_tableau_table(WRITE_DISPOSITION, OFFSET)
+
+
 def run_delete_tables(event, context):
     print("STARTING delete_tables")
     tables = [
@@ -164,25 +170,29 @@ def run_delete_tables(event, context):
         )
 
 
-def main_test(event, context):
-    run_delete_tables("hello", "world")
+# def main_test(event, context):
+#     run_delete_tables("hello", "world")
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    run_financial_accounts("hello", "world")
+#     run_financial_accounts("hello", "world")
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    run_budget_values(event, context)
+#     run_budget_values("hello", "world")
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    run_plaid_investments("hello", "world")
+#     run_plaid_investments("hello", "world")
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    run_plaid_transactions("hello", "world")
+#     run_plaid_transactions("hello", "world")
+
+#     time.sleep(3)
+
+#     run_personal_finance_queries("hello", "world")
 
 
-if __name__ == "__main__":
-    main_test("hello", "world")
+# if __name__ == "__main__":
+#     main_test("hello", "world")

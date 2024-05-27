@@ -77,6 +77,23 @@ class CloudSchemas:
             "schedule": "30 10 * * *",  # 10:30am UTC
         }
 
+    def personal_finance_queries(self):
+        return {
+            "project_id": self.project_id,
+            "function_name": "personal-finance-queries-workflow",
+            "job_name": "personal-finance-queries-scheduler",
+            "trigger_topic": "personal-finance-queries-pubsub",
+            "entry_point": "run_personal_finance_queries",
+            "source": self.source,
+            "runtime": self.runtime,
+            "region": self.region,
+            "timeout": self.timeout,
+            "memory": self.memory,
+            "service_account": self.service_account,
+            "timezone": self.timezone,
+            "schedule": "45 10 * * *",  # 10:45am UTC
+        }
+
     def test_job(self):
         return {
             "project_id": self.project_id,
