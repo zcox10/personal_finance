@@ -23,11 +23,11 @@ PLAID_HOST = plaid.Environment.Production
 
 # CONSTANTS: general
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
-OFFSET = 0
+OFFSET = -1
 
 # CONSTANTS: plaid transactions
-BACKFILL = False
-ADD_TEST_TRANSACTIONS = False  # to add a removed transaction or not in generate_transactions_dfs()
+BACKFILL = True
+ADD_TEST_TRANSACTIONS = True  # to add a removed transaction or not in generate_transactions_dfs()
 
 # CONSTANTS: plaid investments
 START_DATE = (  # if backfill, use 730 days ago as START_DATE. Else, use today
@@ -145,8 +145,15 @@ def run_plaid_investments(event, context):
 
 
 def run_personal_finance_queries(event, context):
+    print("STARTING personal_finance_queries")
     query_jobs = QueryJobs(bq_client)
-    query_jobs.create_tableau_table(WRITE_DISPOSITION, OFFSET)
+    query_jobs.create_tableau_table(
+        sql_path="jobs/queries/personal_finance_tableau.sql",
+        write_disposition=WRITE_DISPOSITION,
+        offset=OFFSET,
+    )
+
+    print("SUCCESS: Personal Finance Tableau query done!")
 
 
 def run_delete_tables(event, context):
@@ -170,29 +177,29 @@ def run_delete_tables(event, context):
         )
 
 
-# def main_test(event, context):
-#     run_delete_tables("hello", "world")
+def main_test(event, context):
+    # run_delete_tables("hello", "world")
 
-#     time.sleep(3)
+    # time.sleep(3)
 
-#     run_financial_accounts("hello", "world")
+    # run_financial_accounts("hello", "world")
 
-#     time.sleep(3)
+    # time.sleep(3)
 
-#     run_budget_values("hello", "world")
+    # run_budget_values("hello", "world")
 
-#     time.sleep(3)
+    # time.sleep(3)
 
-#     run_plaid_investments("hello", "world")
+    # run_plaid_investments("hello", "world")
 
-#     time.sleep(3)
+    # time.sleep(3)
 
-#     run_plaid_transactions("hello", "world")
+    # run_plaid_transactions("hello", "world")
 
-#     time.sleep(3)
+    # time.sleep(3)
 
-#     run_personal_finance_queries("hello", "world")
+    run_personal_finance_queries("hello", "world")
 
 
-# if __name__ == "__main__":
-#     main_test("hello", "world")
+if __name__ == "__main__":
+    main_test("hello", "world")
