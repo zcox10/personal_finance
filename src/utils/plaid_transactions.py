@@ -98,6 +98,7 @@ class PlaidTransactions:
 
         # get plaid accounts. Stores access_token, item_id, and next cursor in df df
         accounts_df = self.__plaid_client.get_items_by_access_token(access_tokens, products=["transactions"])
+        accounts_df = accounts_df[["item_id"]]
 
         # add empty cursor as next_cursor (fresh start)
         accounts_df["next_cursor"] = ""
