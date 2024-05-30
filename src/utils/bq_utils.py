@@ -1,6 +1,9 @@
 import json
 import time
 import sys
+import db_dtypes
+import decimal
+import pandas
 from datetime import datetime as dt, timezone
 from dateutil.relativedelta import relativedelta
 from google.cloud import bigquery
@@ -353,7 +356,7 @@ class BqUtils:
             if count >= 10:
                 print("\nChecked table dependencies 10 times, exiting.")
 
-    def load_df_to_bq(self, df, full_table_name, write_disposition):
+    def load_df_to_bq(self, df, full_table_name, table_schema, write_disposition):
         """
         Loads a pandas DataFrame into a BigQuery table.
 
@@ -369,6 +372,10 @@ class BqUtils:
         job_config = LoadJobConfig()
         job_config.write_disposition = write_disposition
 
+        if table_schema is not None:
+            job_config.schema = table_schema
+            df = self.cast_dataframe_for_parquet(df, table_schema)
+
         load_job = self.bq_client.load_table_from_dataframe(df, full_table_name, job_config=job_config)
         load_job.result()
 
@@ -376,6 +383,62 @@ class BqUtils:
             print(f"SUCCESS: df uploaded to `{full_table_name}`")
 
         return load_job
+
+    def cast_dataframe_for_parquet(self, dataframe, schema):
+        """Cast columns to needed dtype when writing parquet files.
+
+        See: https://github.com/googleapis/python-bigquery-pandas/issues/421
+        """
+
+        columns = schema
+
+        # Protect against an explicit None in the dictionary.
+        columns = columns if columns is not None else []
+
+        for column in columns:
+            # Schema can be a superset of the columns in the dataframe, so ignore
+            # columns that aren't present.
+            column_name = column.get("name")
+            if column_name not in dataframe.columns:
+                continue
+
+            # Skip array columns for now. Potentially casting the elements of the
+            # array would be possible, but not worth the effort until there is
+            # demand for it.
+            if column.get("mode", "NULLABLE").upper() == "REPEATED":
+                continue
+
+            column_type = column.get("type", "").upper()
+            if (
+                column_type == "DATE"
+                # Use extension dtype first so that it uses the correct equality operator.
+                and db_dtypes.DateDtype() != dataframe[column_name].dtype
+            ):
+                cast_column = dataframe[column_name].astype(
+                    dtype=db_dtypes.DateDtype(),
+                    # Return the original column if there was an error converting
+                    # to the dtype, such as is there is a date outside the
+                    # supported range.
+                    # https://github.com/googleapis/python-bigquery-pandas/issues/441
+                    errors="ignore",
+                )
+            elif column_type in {"NUMERIC", "DECIMAL", "BIGNUMERIC", "BIGDECIMAL"}:
+                # decimal.Decimal does not support `None` or `pandas.NA` input, add
+                # support here.
+                # https://github.com/googleapis/python-bigquery-pandas/issues/719
+                def convert(x):
+                    if pandas.isna(x):  # true for `None` and `pandas.NA`
+                        return decimal.Decimal("NaN")
+                    else:
+                        return decimal.Decimal(x)
+
+                cast_column = dataframe[column_name].map(convert)
+            else:
+                cast_column = None
+
+            if cast_column is not None:
+                dataframe = dataframe.assign(**{column_name: cast_column})
+        return dataframe
 
     def bq_table_has_data(self, project_id, dataset_id, table_id):
         """

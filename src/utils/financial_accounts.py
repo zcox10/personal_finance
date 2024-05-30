@@ -3,14 +3,88 @@ import pandas as pd
 import sys
 from google.api_core.exceptions import NotFound
 from utils.bq_utils import BqUtils
+from utils.crypto_utils import CryptoUtils
 from jobs.bq_table_schemas import BqTableSchemas
 
 
 class FinancialAccounts:
     def __init__(self, bq_client, plaid_client):
         self.__bq = BqUtils(bq_client=bq_client)
+        self.__crypto = CryptoUtils()
         self.__plaid_client = plaid_client
         self.__bq_tables = BqTableSchemas()
+
+    def __create_crypto_accounts_df(self, eth_addresses, btc_addresses, eth_api_key, btc_api_key):
+        item_ids = []
+        persistent_account_ids = []
+        account_ids = []
+        account_masks = []
+        account_names = []
+        account_official_names = []
+        account_types = []
+        account_subtypes = []
+        account_sources = []
+        institution_ids = []
+        institution_names = []
+        balances = []
+        update_types = []
+        consent_expiration_times = []
+        products = []
+        billed_products = []
+
+        crypto_balances = self.__crypto.get_crypto_balances(eth_addresses, btc_addresses, eth_api_key, btc_api_key)
+
+        # if no results, return None
+        if len(crypto_balances) == 0:
+            return None
+
+        # else, add data to df
+        for k, v in crypto_balances.items():
+            item_ids.append(k)
+            persistent_account_ids.append(None)
+            account_ids.append(None)
+            account_masks.append(None)
+            account_names.append(v["unofficial_currency_code"])
+            account_official_names.append(v["unofficial_currency_code"])
+            account_types.append("investment")
+            account_subtypes.append("cryptocurrency")
+            account_sources.append("CRYPTO")
+            institution_ids.append(None)
+            institution_names.append(None)
+            balances.append(
+                {
+                    "available": v["available"],
+                    "current": v["current"],
+                    "limit": v["limit"],
+                    "currency_code": v["currency_code"],
+                    "unofficial_currency_code": v["unofficial_currency_code"],
+                }
+            )
+            update_types.append(None)
+            consent_expiration_times.append(None)
+            products.append([])
+            billed_products.append([])
+
+        return pd.DataFrame(
+            {
+                "item_id": pd.Series(item_ids, dtype="str"),
+                "persistent_account_id": pd.Series(persistent_account_ids, dtype="str"),
+                "account_id": pd.Series(account_ids, dtype="str"),
+                "account_mask": pd.Series(account_masks, dtype="str"),
+                "account_name": pd.Series(account_names, dtype="str"),
+                "account_official_name": pd.Series(account_official_names, dtype="str"),
+                "account_type": pd.Series(account_types, dtype="str"),
+                "account_subtype": pd.Series(account_subtypes, dtype="str"),
+                "account_source": pd.Series(account_sources, dtype="str"),
+                "institution_id": pd.Series(institution_ids, dtype="str"),
+                "institution_name": pd.Series(institution_names, dtype="str"),
+                "balance": balances,
+                "update_type": pd.Series(update_types, dtype="str"),
+                "consent_expiration_time": pd.Series(consent_expiration_times, dtype="datetime64[ns]"),
+                "products": products,
+                "billed_products": billed_products,
+            }
+        )
 
     def __create_plaid_accounts_df(self, access_token, plaid_country_codes):
         """
@@ -189,7 +263,40 @@ class FinancialAccounts:
             print("\n" + str(e))
             sys.exit(1)
 
-    def add_plaid_accounts_to_bq(self, access_tokens, plaid_country_codes, offset):
+    def create_final_accounts_df(
+        self, plaid_access_tokens, plaid_country_codes, eth_addresses, btc_addresses, eth_api_key, btc_api_key
+    ):
+        # list to store df's in for BQ upload
+        df_list = []
+
+        # add Plaid accounts
+        for token in list(set(plaid_access_tokens)):
+            accounts_df = self.__create_plaid_accounts_df(token, plaid_country_codes)
+            if accounts_df is not None:
+                df_list.append(accounts_df)
+
+        crypto_df = self.__create_crypto_accounts_df(eth_addresses, btc_addresses, eth_api_key, btc_api_key)
+        if crypto_df is not None:
+            df_list.append(crypto_df)
+
+        if len(df_list) == 0:
+            return None
+        else:
+            df = pd.concat(df_list).reset_index(drop=True)
+            # print(df["balance"])
+            return df
+
+    def add_plaid_accounts_to_bq(
+        self,
+        plaid_access_tokens,
+        plaid_country_codes,
+        eth_addresses,
+        btc_addresses,
+        eth_api_key,
+        btc_api_key,
+        offset,
+        write_disposition,
+    ):
         """
         Add accounts data to a defined BQ table.
 
@@ -202,26 +309,26 @@ class FinancialAccounts:
             None
         """
 
-        # add access tokens to accounts table
+        # generate schema for new financial_accounts_YYYYMMDD table
         financial_accounts_bq = self.__bq.update_table_schema_partition(
             schema=self.__bq_tables.financial_accounts_YYYYMMDD(),
             offset=offset,
         )
-        for token in list(set(access_tokens)):
-            accounts_df = self.__create_plaid_accounts_df(token, plaid_country_codes)
 
-            # (bool): if true, there are no duplicates and continue OR there are duplicates but chose to continue anyways
-            decision = self.__check_account_duplicates(financial_accounts_bq["full_table_name"], accounts_df)
-            if decision and accounts_df is not None:
-                # Load the record to cursors temp BQ table. "WRITE_APPEND" because there are multiple individual uploads
-                self.__bq.load_df_to_bq(accounts_df, financial_accounts_bq["full_table_name"], "WRITE_APPEND")
-                time.sleep(3)
-            elif not decision:
-                print("There are account duplicates present. Decided not to upload account data to BQ\n")
-            else:
-                print("There is no account data available in accounts_df. Did not upload to BQ\n")
-
-        print(f"SUCCESS: all access tokens added to `{financial_accounts_bq['full_table_name']}`\n")
+        # create accounts_df to upload to BQ
+        accounts_df = self.create_final_accounts_df(
+            plaid_access_tokens, plaid_country_codes, eth_addresses, btc_addresses, eth_api_key, btc_api_key
+        )
+        if accounts_df is not None:
+            self.__bq.load_df_to_bq(
+                accounts_df,
+                financial_accounts_bq["full_table_name"],
+                financial_accounts_bq["table_schema"],
+                write_disposition,
+            )
+            print(f"SUCCESS: all access tokens added to `{financial_accounts_bq['full_table_name']}`\n")
+        else:
+            print("No accounts present in accounts_df")
 
     def create_empty_accounts_bq_table(self, offset, write_disposition):
         """

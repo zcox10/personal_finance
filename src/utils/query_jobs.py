@@ -8,7 +8,7 @@ class QueryJobs:
         self.__bq = BqUtils(bq_client=bq_client)
         self.__bq_tables = BqTableSchemas()
 
-    def create_tableau_table(self, sql_path, write_disposition, offset):
+    def create_tableau_table(self, sql_path, offset, write_disposition):
         tableau_bq = self.__bq.update_table_schema_partition(
             schema=self.__bq_tables.personal_finance_tableau_YYYYMMDD(), offset=offset
         )

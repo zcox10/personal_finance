@@ -48,7 +48,9 @@ class BudgetValues:
         budget_values_df = self.__create_budget_values_df()
 
         # upload df to budget_values_YYYYMM. "WRITE_TRUNCATE" because multiple transaction_df's will be loaded
-        return self.__bq.load_df_to_bq(budget_values_df, budget_values_bq["full_table_name"], "WRITE_TRUNCATE")
+        return self.__bq.load_df_to_bq(
+            budget_values_df, budget_values_bq["full_table_name"], budget_values_bq["table_schema"], "WRITE_TRUNCATE"
+        )
 
     def __budget_schema(self):
         """
