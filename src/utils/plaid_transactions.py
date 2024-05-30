@@ -86,15 +86,15 @@ class PlaidTransactions:
             schema=self.__bq_tables.plaid_cursors_YYYYMMDD(), offset=offset
         )
 
-        # create empty table to store account data
-        self.__bq.create_empty_bq_table(
-            project_id=plaid_cursors_bq["project_id"],
-            dataset_id=plaid_cursors_bq["dataset_id"],
-            table_id=plaid_cursors_bq["table_id"],
-            table_description=plaid_cursors_bq["table_description"],
-            table_schema=plaid_cursors_bq["table_schema"],
-            write_disposition=write_disposition,
-        )
+        # # create empty table to store account data
+        # self.__bq.create_empty_bq_table(
+        #     project_id=plaid_cursors_bq["project_id"],
+        #     dataset_id=plaid_cursors_bq["dataset_id"],
+        #     table_id=plaid_cursors_bq["table_id"],
+        #     table_description=plaid_cursors_bq["table_description"],
+        #     table_schema=plaid_cursors_bq["table_schema"],
+        #     write_disposition=write_disposition,
+        # )
 
         # get plaid accounts. Stores access_token, item_id, and next cursor in df df
         accounts_df = self.__plaid_client.get_items_by_access_token(access_tokens, products=["transactions"])
@@ -104,9 +104,11 @@ class PlaidTransactions:
         accounts_df["next_cursor"] = ""
 
         # table should already be empty, so use WRITE_TRUNCATE
-        return self.__bq.load_df_to_bq(accounts_df, plaid_cursors_bq["full_table_name"], "WRITE_TRUNCATE")
+        return self.__bq.load_df_to_bq(
+            accounts_df, plaid_cursors_bq["full_table_name"], plaid_cursors_bq["table_schema"], "WRITE_TRUNCATE"
+        )
 
-    def add_cursor_to_bq(self, item_id, next_cursor, full_table_name):
+    def add_cursor_to_bq(self, item_id, next_cursor, full_table_name, table_schema):
         """
         Updates a Plaid access token / item with the latest Plaid cursor
 
@@ -123,7 +125,7 @@ class PlaidTransactions:
         cursors_df = pd.DataFrame({"item_id": [item_id], "next_cursor": [next_cursor]})
 
         # Load the record to cursors temp BQ table. "WRITE_APPEND" because there are multiple individual uploads
-        return self.__bq.load_df_to_bq(cursors_df, full_table_name, "WRITE_APPEND")
+        return self.__bq.load_df_to_bq(cursors_df, full_table_name, table_schema, "WRITE_APPEND")
 
     def create_temp_cursors_bq_table(self, write_disposition):
         """
@@ -530,7 +532,12 @@ class PlaidTransactions:
         )
 
         # upload df to plaid_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
-        return self.__bq.load_df_to_bq(transactions_df, plaid_transactions_bq["full_table_name"], "WRITE_APPEND")
+        return self.__bq.load_df_to_bq(
+            transactions_df,
+            plaid_transactions_bq["full_table_name"],
+            plaid_transactions_bq["table_schema"],
+            "WRITE_APPEND",
+        )
 
     def upload_transactions_df_list_to_bq(self, transactions_df_list, offset, write_disposition):
         """
@@ -548,10 +555,10 @@ class PlaidTransactions:
         # only upload transactions_df to BQ if there is at least one non-null df
         if len(transactions_df_list) > 0:
             concat_transactions_df = pd.concat(transactions_df_list)
-            self.create_empty_transactions_bq_table(offset, write_disposition)
+            # self.create_empty_transactions_bq_table(offset, write_disposition)
 
-            print("SLEEP 5 SECONDS TO WAIT FOR plaid_transactions_YYYYMMDD creation\n")
-            time.sleep(5)
+            # print("SLEEP 5 SECONDS TO WAIT FOR plaid_transactions_YYYYMMDD creation\n")
+            # time.sleep(5)
 
             self.upload_transactions_df_to_bq(concat_transactions_df, offset)
 
@@ -578,7 +585,9 @@ class PlaidTransactions:
         )
 
         # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
-        return self.__bq.load_df_to_bq(removed_df, plaid_removed_bq["full_table_name"], "WRITE_APPEND")
+        return self.__bq.load_df_to_bq(
+            removed_df, plaid_removed_bq["full_table_name"], plaid_removed_bq["table_schema"], "WRITE_APPEND"
+        )
 
     def upload_removed_df_list_to_bq(self, removed_df_list, offset, write_disposition):
         """
@@ -595,10 +604,10 @@ class PlaidTransactions:
         # only upload removed_df to BQ if there is at least one non-null df
         if len(removed_df_list) > 0:
             concat_removed_df = pd.concat(removed_df_list)
-            self.create_empty_removed_bq_table(offset, write_disposition)
+            # self.create_empty_removed_bq_table(offset, write_disposition)
 
-            print("SLEEP 5 SECONDS TO WAIT FOR plaid_removed_transactions_YYYYMMDD creation\n")
-            time.sleep(5)
+            # print("SLEEP 5 SECONDS TO WAIT FOR plaid_removed_transactions_YYYYMMDD creation\n")
+            # time.sleep(5)
 
             self.upload_removed_df_to_bq(concat_removed_df, offset)
 
@@ -655,6 +664,7 @@ class PlaidTransactions:
             item_id=item_id,
             next_cursor=latest_cursor,
             full_table_name=temp_plaid_cursors_bq["full_table_name"],
+            table_schema=temp_plaid_cursors_bq["table_schema"],
         )
 
         print(f"SUCCESS: retrieved transactions for item_id: {item_id}")

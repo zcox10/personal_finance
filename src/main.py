@@ -15,19 +15,20 @@ from utils.plaid_investments import PlaidInvestments
 from utils.query_jobs import QueryJobs
 
 # SECRETS
-secrets = SecretsUtils().create_secrets_dict(secret_type="PROD")
+secrets = SecretsUtils().create_secrets_dict(plaid_secret_type="PROD")
 PLAID_CLIENT_ID = secrets["PLAID_CLIENT_ID"]
 PLAID_SECRET = secrets["PLAID_SECRET_PROD"]
 PLAID_ACCESS_TOKENS = SecretsUtils().get_access_token_secrets(secrets)
 PLAID_HOST = plaid.Environment.Production
+CRYPTO_SECRETS = secrets["CRYPTO_SECRETS"]
 
 # CONSTANTS: general
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
-OFFSET = -1
+OFFSET = 0
 
 # CONSTANTS: plaid transactions
-BACKFILL = True
-ADD_TEST_TRANSACTIONS = True  # to add a removed transaction or not in generate_transactions_dfs()
+BACKFILL = False
+ADD_TEST_TRANSACTIONS = False  # to add a removed transaction or not in generate_transactions_dfs()
 
 # CONSTANTS: plaid investments
 START_DATE = (  # if backfill, use 730 days ago as START_DATE. Else, use today
@@ -47,20 +48,34 @@ def run_financial_accounts(event, context):
     # pubsub_message = base64.b64decode(event["data"]).decode("utf-8")
     # print(f"Received message: {pubsub_message}")
 
-    print("STARTING financial_accounts")
+    print("\n******************** STARTING financial_accounts ********************")
 
     # init client
     financial_accounts = FinancialAccounts(bq_client, plaid_client)
 
+    # get crypto secrets
+    eth_addresses = CRYPTO_SECRETS["ETH"]["addresses"]
+    eth_api_key = CRYPTO_SECRETS["ETH"]["api_key"]
+    btc_addresses = CRYPTO_SECRETS["BTC"]["addresses"]
+    btc_api_key = CRYPTO_SECRETS["BTC"]["api_key"]
+
     # Create a new financial_accounts table to, upload all account info according to access_tokens provided
-    financial_accounts.create_empty_accounts_bq_table(OFFSET, WRITE_DISPOSITION)
-    financial_accounts.add_plaid_accounts_to_bq(PLAID_ACCESS_TOKENS, ["US"], OFFSET)
+    financial_accounts.add_plaid_accounts_to_bq(
+        PLAID_ACCESS_TOKENS,
+        ["US"],
+        eth_addresses,
+        btc_addresses,
+        eth_api_key,
+        btc_api_key,
+        OFFSET,
+        WRITE_DISPOSITION,
+    )
 
     print("SUCCESS: Financial account data uploaded to BQ")
 
 
 def run_budget_values(event, context):
-    print("STARTING budget_values")
+    print("\n******************** STARTING budget_values ********************")
 
     # init client
     budget_values = BudgetValues(bq_client)
@@ -72,7 +87,7 @@ def run_budget_values(event, context):
 
 
 def run_plaid_transactions(event, context):
-    print("STARTING plaid_transactions")
+    print("\n******************** STARTING plaid_transactions ********************")
 
     # init client
     plaid_transactions = PlaidTransactions(bq_client, plaid_client)
@@ -114,7 +129,7 @@ def run_plaid_transactions(event, context):
 
 
 def run_plaid_investments(event, context):
-    print("STARTING plaid_investments")
+    print("\n******************** STARTING plaid_investments ********************")
 
     # init client
     plaid_investments = PlaidInvestments(bq_client, plaid_client)
@@ -145,19 +160,20 @@ def run_plaid_investments(event, context):
 
 
 def run_personal_finance_queries(event, context):
-    print("STARTING personal_finance_queries")
+    print("\n******************** STARTING personal_finance_queries ********************")
+
     query_jobs = QueryJobs(bq_client)
     query_jobs.create_tableau_table(
         sql_path="jobs/queries/personal_finance_tableau.sql",
-        write_disposition=WRITE_DISPOSITION,
         offset=OFFSET,
+        write_disposition=WRITE_DISPOSITION,
     )
 
     print("SUCCESS: Personal Finance Tableau query done!")
 
 
-def run_delete_tables(event, context):
-    print("STARTING delete_tables")
+def run_delete_all_tables(event, context):
+    print("\n******************** STARTING delete_all_tables ********************")
     tables = [
         "financial_accounts_YYYYMMDD",
         "plaid_cursors_YYYYMMDD",
@@ -177,29 +193,51 @@ def run_delete_tables(event, context):
         )
 
 
-def main_test(event, context):
-    # run_delete_tables("hello", "world")
+def run_delete_latest_tables(event, context):
+    print("\n******************** STARTING delete_latest_tables ********************")
+    tables = [
+        "financial_accounts_YYYYMMDD",
+        "plaid_cursors_YYYYMMDD",
+        "plaid_removed_transactions_YYYYMMDD",
+        "plaid_transactions_YYYYMMDD",
+        "temp_plaid_cursors",
+        "plaid_investment_holdings_YYYYMMDD",
+        "plaid_investment_transactions_YYYYMMDD",
+    ]
 
-    # time.sleep(3)
-
-    # run_financial_accounts("hello", "world")
-
-    # time.sleep(3)
-
-    # run_budget_values("hello", "world")
-
-    # time.sleep(3)
-
-    # run_plaid_investments("hello", "world")
-
-    # time.sleep(3)
-
-    # run_plaid_transactions("hello", "world")
-
-    # time.sleep(3)
-
-    run_personal_finance_queries("hello", "world")
+    for table in tables:
+        table = bq.get_latest_table_partition("personal_finance", table)
+        bq.delete_bq_table(
+            project_id="zsc-personal",
+            dataset_id="personal_finance",
+            table_id=table,
+            confirm=False,
+        )
 
 
-if __name__ == "__main__":
-    main_test("hello", "world")
+# def main_test(event, context):
+#     run_delete_latest_tables("hello", "world")
+
+#     time.sleep(3)
+
+#     run_financial_accounts("hello", "world")
+
+#     time.sleep(3)
+
+#     run_budget_values("hello", "world")
+
+#     time.sleep(3)
+
+#     run_plaid_investments("hello", "world")
+
+#     time.sleep(3)
+
+#     run_plaid_transactions("hello", "world")
+
+#     time.sleep(3)
+
+#     run_personal_finance_queries("hello", "world")
+
+
+# if __name__ == "__main__":
+#     main_test("hello", "world")

@@ -49,7 +49,18 @@ class SecretsUtils:
 
         return secrets_list
 
-    def create_secrets_dict(self, secret_type, project_id="zsc-personal", version_id="latest"):
+    def create_crypto_secrets_dict(self, secrets, project_id, version_id):
+        for k, v in secrets.items():
+            decrypted_api_key = self.get_secrets(v["api_key"], project_id, version_id)
+            v["api_key"] = decrypted_api_key
+
+            decrypted_addresses = []
+            for addr in v["addresses"]:
+                decrypted_addresses.append(self.get_secrets(addr, project_id, version_id))
+            v["addresses"] = decrypted_addresses
+        return secrets
+
+    def create_secrets_dict(self, plaid_secret_type, project_id="zsc-personal", version_id="latest"):
         """
         Create a dictionary containing secrets.
 
@@ -62,10 +73,10 @@ class SecretsUtils:
             dict: A dictionary containing the secrets needed for the specified job.
         """
 
-        # secrets to gather
-        secrets = [
+        # Plaid secrets to gather
+        plaid_secrets = [
             "PLAID_CLIENT_ID",
-            f"PLAID_SECRET_{secret_type}",
+            f"PLAID_SECRET_{plaid_secret_type}",
             "PLAID_TOKEN_BOA",
             "PLAID_TOKEN_CHASE",
             "PLAID_TOKEN_ETRADE",
@@ -75,8 +86,26 @@ class SecretsUtils:
         ]
 
         secrets_dict = {}
-        for secret in secrets:
+        for secret in plaid_secrets:
             secret_key = self.get_secrets(secret, project_id, version_id)
-            secrets_dict[secret] = secret_key
+
+            # add plaid tokens to dict
+            if secret[: len("PLAID")] == "PLAID":
+                secrets_dict[secret] = secret_key
+
+        # Crypto secrets to gather
+        crypto_secrets = {
+            "ETH": {
+                "api_key": "ETHERSCAN_KEY",
+                "addresses": ["ETH_ADDR_1"],
+            },
+            "BTC": {
+                "api_key": "BLOCKONOMICS_KEY",
+                "addresses": ["BTC_ADDR_1"],
+            },
+        }
+
+        crypto_secrets_dict = self.create_crypto_secrets_dict(crypto_secrets, project_id, version_id)
+        secrets_dict["CRYPTO_SECRETS"] = crypto_secrets_dict
 
         return secrets_dict

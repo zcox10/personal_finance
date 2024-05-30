@@ -1,4 +1,5 @@
 import requests
+import numpy as np
 import sys
 
 
@@ -7,68 +8,53 @@ class CryptoUtils:
     def __init__(self):
         pass
 
-    def btc_cost_basis(self, btc_address, api_key):
-        # URL to get the transaction history of the BTC address
-        transactions_url = f"https://blockchain.info/rawaddr/{btc_address}?api_code={api_key}"
-
-        # Make the request to get transaction history
-        response = requests.get(transactions_url)
-
-        transactions_data = response.json()
-        transactions = transactions_data["txs"]
-
-        total_bought = 0  # To keep track of total BTC bought
-
-        for tx in transactions:
-            for output in tx["out"]:
-                if output["addr"] == btc_address:
-                    total_bought += output["value"]  # Value is in satoshis
-
-        # Convert from satoshis to BTC
-        total_bought_btc = total_bought / 100000000
-        return total_bought_btc
-
     def get_btc_balance(self, btc_address, api_key):
         """
-        Retrieve the BTC balance of multiple BTC addresses
+        Retrieve the BTC balance of all addresses via xpub
 
         Args:
-            addrs (list): The BTC addresses
+            xpub_key (str): The BTC xpub
 
         Returns:
             float: The balance in BTC
         """
 
-        # URL for getting the balance of the BTC address
-        balance_url = f"https://blockchain.info/balance?active={btc_address}&api_code={api_key}"
+        # define request
+        url = "https://www.blockonomics.co/api/balance"
+        payload = {"addr": f"{btc_address}"}
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-        # Get the balance of the BTC address
-        balance_response = requests.get(balance_url)
+        # generate request
+        response = requests.post(url, json=payload, headers=headers)
+        balance_info = response.json()
 
-        # Balance is returned in satoshis (1 BTC = 100,000,000 satoshis)
-        balance_satoshis = int(next(iter(balance_response.json().values()))["final_balance"])
-        balance_btc = balance_satoshis / 100000000
-        return balance_btc
+        # sum up balance of all BTC addresses
+        balance = 0
+        for i in balance_info["response"]:
+            balance += i["confirmed"]
+
+        return balance / 1e8
 
     def get_btc_to_usd_exchange_rate(self, api_key):
         """
         Retrieve the BTC to USD exchange rate
 
+        Args:
+            api_key (str): The api_key from Blockonomics
+
         Returns:
             float: The value of 1 BTC in USD
         """
 
-        # URL for getting the BTC to USD exchange rate
-        exchange_rate_url = f"https://blockchain.info/ticker?api_code={api_key}"
+        # define request
+        url = "https://www.blockonomics.co/api/price?currency=USD"
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-        # Get the BTC to USD exchange rate
-        exchange_rate_response = requests.get(exchange_rate_url)
+        # generate request and return price in USD
+        response = requests.get(url, headers=headers)
+        return response.json()["price"]
 
-        exchange_rates = exchange_rate_response.json()
-        btc_to_usd = exchange_rates["USD"]["last"]
-        return btc_to_usd
-
-    def get_eth_balance(self, api_key, eth_address):
+    def get_eth_balance(self, eth_address, api_key):
         """
         Retrieve the ETH balance via eth_address
 
@@ -84,35 +70,29 @@ class CryptoUtils:
 
         # Get the balance of the ETH address
         balance_response = requests.get(etherscan_url)
-
-        # if balance_response.status_code == 200:
         balance_data = balance_response.json()
-        if balance_data["status"] == "1":
-            # Balance is returned in wei (1 ETH = 10^18 wei)
-            balance_wei = int(balance_data["result"])
-            balance_eth = balance_wei / 10**18
-            return balance_eth
-        else:
-            print("STATUS CODE:", balance_response.status_code)
-            print(balance_data["status"])
-            sys.exit(1)
 
-    def get_eth_to_usd_exchange_rate(self):
+        # Balance is returned in wei (1 ETH = 10^18 wei)
+        balance_wei = int(balance_data["result"])
+        balance_eth = balance_wei / 10**18
+        return balance_eth
+
+    def get_eth_to_usd_exchange_rate(self, api_key):
         """
-        Retrieve the ETH to USD exchange rate
+        Retrieve the current price of ETH in USD using the Etherscan API.
+
+        Args:
+            api_key (str): Your Etherscan API key.
 
         Returns:
-            float: The value of 1 ETH in USD
+            float: The current price of ETH in USD.
         """
-        # URL for getting the ETH to USD exchange rate from CoinGecko
-        coingecko_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
+        url = f"https://api.etherscan.io/api?module=stats&action=ethprice&apikey={api_key}"
 
-        # Get the ETH to USD exchange rate
-        exchange_rate_response = requests.get(coingecko_url)
-
-        exchange_rates = exchange_rate_response.json()
-        eth_to_usd = exchange_rates["ethereum"]["usd"]
-        return eth_to_usd
+        response = requests.get(url)
+        data = response.json()
+        eth_price_usd = float(data["result"]["ethusd"])
+        return eth_price_usd
 
     def convert_crypto_amount(self, balance, fx_rate):
         """
@@ -127,3 +107,61 @@ class CryptoUtils:
         """
 
         return balance * fx_rate
+
+    def get_crypto_balances(self, eth_addresses, btc_addresses, eth_api_key, btc_api_key):
+        """
+        Retrieve and convert cryptocurrency balances to USD for given Ethereum and Bitcoin addresses.
+
+        Args:
+            eth_addresses (list): List of Ethereum addresses to check balances for.
+            btc_addresses (list): List of Bitcoin addresses to check balances for.
+            eth_api_key (str): API key for accessing Ethereum balance and exchange rate.
+            btc_api_key (str): API key for accessing Bitcoin balance and exchange rate.
+
+        Returns:
+            dict: A dictionary containing the balances of each address in both the original cryptocurrency and USD.
+                The dictionary keys are the addresses, and the values are another dictionary with the following keys:
+                - "available": The balance in the original cryptocurrency.
+                - "current": The balance converted to USD.
+                - "limit": None (placeholder for future use).
+                - "currency_code": "USD".
+                - "unofficial_currency_code": "BTC" or "ETH".
+        """
+        # Initialize a dictionary to hold the balances
+        crypto_balances = {}
+
+        # Get the current exchange rate from BTC to USD
+        btc_to_usd = self.get_btc_to_usd_exchange_rate(btc_api_key)
+
+        # Process each Bitcoin address
+        for addr in btc_addresses:
+            # Get the balance of the Bitcoin address
+            btc_balance = self.get_btc_balance(addr, btc_api_key)
+
+            # Store the balance and converted amount in the dictionary
+            crypto_balances[f"{addr}"] = {
+                "available": btc_balance,
+                "current": self.convert_crypto_amount(btc_balance, btc_to_usd),
+                "limit": np.nan,
+                "currency_code": "USD",
+                "unofficial_currency_code": "BTC",
+            }
+
+        # Get the current exchange rate from ETH to USD
+        eth_to_usd = self.get_eth_to_usd_exchange_rate(eth_api_key)
+
+        # Process each Ethereum address
+        for addr in eth_addresses:
+            # Get the balance of the Ethereum address
+            eth_balance = self.get_eth_balance(addr, eth_api_key)
+
+            # Store the balance and converted amount in the dictionary
+            crypto_balances[f"{addr}"] = {
+                "available": eth_balance,
+                "current": self.convert_crypto_amount(eth_balance, eth_to_usd),
+                "limit": np.nan,
+                "currency_code": "USD",
+                "unofficial_currency_code": "ETH",
+            }
+
+        return crypto_balances

@@ -371,7 +371,10 @@ class PlaidInvestments:
 
         # upload df to plaid_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(
-            investment_transactions_df, plaid_investment_transactions_bq["full_table_name"], "WRITE_APPEND"
+            investment_transactions_df,
+            plaid_investment_transactions_bq["full_table_name"],
+            plaid_investment_transactions_bq["table_schema"],
+            "WRITE_APPEND",
         )
 
     def upload_investment_transactions_df_list_to_bq(self, investment_transactions_df_list, offset, write_disposition):
@@ -394,9 +397,9 @@ class PlaidInvestments:
             concat_investment_transactions_df = pd.concat(investment_transactions_df_list)
 
             # create empty plaid_investment_transactions_YYYYMMDD to upload transactions to
-            self.create_empty_investment_transactions_bq_table(offset, write_disposition)
-            print("SLEEP 5 SECONDS TO WAIT FOR plaid_investment_transactions_YYYYMMDD creation\n")
-            time.sleep(5)
+            # self.create_empty_investment_transactions_bq_table(offset, write_disposition)
+            # print("SLEEP 5 SECONDS TO WAIT FOR plaid_investment_transactions_YYYYMMDD creation\n")
+            # time.sleep(5)
             self.upload_investment_transactions_df_to_bq(concat_investment_transactions_df, offset)
 
     def upload_investment_holdings_df_to_bq(self, holdings_df, offset):
@@ -419,7 +422,12 @@ class PlaidInvestments:
         )
 
         # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
-        return self.__bq.load_df_to_bq(holdings_df, plaid_investment_holdings_bq["full_table_name"], "WRITE_APPEND")
+        return self.__bq.load_df_to_bq(
+            holdings_df,
+            plaid_investment_holdings_bq["full_table_name"],
+            plaid_investment_holdings_bq["table_schema"],
+            "WRITE_APPEND",
+        )
 
     def upload_investment_holdings_df_list_to_bq(self, holdings_df_list, offset, write_disposition):
         """
@@ -440,11 +448,11 @@ class PlaidInvestments:
         else:
             concat_holdings_df = pd.concat(holdings_df_list)
 
-            # create empty plaid_investment_holdings_YYYYMMDD to upload holdings to
-            self.create_empty_investment_holdings_bq_table(offset, write_disposition)
+            # # create empty plaid_investment_holdings_YYYYMMDD to upload holdings to
+            # self.create_empty_investment_holdings_bq_table(offset, write_disposition)
 
-            print("SLEEP 5 SECONDS TO WAIT FOR plaid_investment_holdings_YYYYMMDD creation\n")
-            time.sleep(5)
+            # print("SLEEP 5 SECONDS TO WAIT FOR plaid_investment_holdings_YYYYMMDD creation\n")
+            # time.sleep(5)
 
             # upload holdings df to BQ
             self.upload_investment_holdings_df_to_bq(concat_holdings_df, offset)
