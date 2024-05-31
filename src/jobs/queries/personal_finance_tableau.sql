@@ -42,8 +42,7 @@ WITH
     currency_code,
     security.type AS security_type,
     security.ticker_symbol,
-  FROM
-    `zsc-personal.personal_finance.plaid_investment_holdings_*`
+  FROM `zsc-personal.personal_finance.plaid_investment_holdings_*`
   )
   , join_investments AS (
   SELECT 
@@ -74,19 +73,59 @@ WITH
     personal_finance_category.detailed AS subcategory_raw,
 
     CASE 
+      -- exclude
+      WHEN REGEXP_CONTAINS(merchant.name, r"Online Banking transfer") AND institution_name = "Bank of America" THEN "EXCLUDE_CATEGORY"
+      WHEN personal_finance_category.detailed = "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT" THEN "EXCLUDE_CATEGORY"
+
+      -- income/deposits
       WHEN merchant.merchant_name = "Spotify" AND amount < 0 THEN "INCOME"
       WHEN merchant.merchant_name = "Coinbase" AND amount < 0 THEN "TRANSFER_IN"
+      WHEN REGEXP_CONTAINS(merchant.name, r"MSPBNA DES") THEN "TRANSFER_IN"
+
+      -- transportation
       WHEN merchant.merchant_name = "Downtown Tempe Authority" THEN "TRANSPORTATION"
+
+      -- rent
       WHEN REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in") THEN "RENT_AND_UTILITIES"
+      WHEN merchant.merchant_name = "Pay Ready Parent" THEN "RENT_AND_UTILITIES"
+
+      -- food/drink
+      WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK"
+      
+      -- education
+      WHEN merchant.name = "SEAS GRAD ADM OFF DEPO" THEN "GENERAL_SERVICES"
+      
+      -- end
       ELSE personal_finance_category.primary
     END AS category_updated,
 
     CASE 
+      -- exclude
+      WHEN REGEXP_CONTAINS(merchant.name, r"Online Banking transfer") AND institution_name = "Bank of America" THEN "EXCLUDE_CATEGORY"
+      WHEN personal_finance_category.detailed = "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT" THEN "EXCLUDE_CATEGORY"
+
+      -- income/deposits
       WHEN merchant.merchant_name = "Spotify" AND amount < 0 THEN "INCOME_WAGES"
       WHEN merchant.merchant_name = "Coinbase" AND amount < 0 THEN "TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS"
+      WHEN REGEXP_CONTAINS(merchant.name, r"MSPBNA DES") THEN "TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS"
+
+      -- transportation
       WHEN merchant.merchant_name = "Downtown Tempe Authority" THEN "TRANSPORTATION_PARKING"
+
+      -- rent
       WHEN REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in") THEN "RENT_AND_UTILITIES_RENT"
+      WHEN merchant.merchant_name = "Pay Ready Parent" THEN "RENT_AND_UTILITIES_RENT"
+
+      -- personal payment transfers
       WHEN personal_finance_category.detailed = "TRANSFER_OUT_ACCOUNT_TRANSFER" AND merchant.merchant_name NOT IN ("Venmo", "Zelle", "Bank of America", "Chase Bank") THEN "TRANSFER_OUT_OTHER_TRANSFER_OUT"
+
+      -- food/drink
+      WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK_OTHER_FOOD_AND_DRINK"
+      
+      -- education
+      WHEN merchant.name = "SEAS GRAD ADM OFF DEPO" THEN "GENERAL_SERVICES_EDUCATION"
+
+      -- end
       ELSE personal_finance_category.detailed
     END AS subcategory_updated,
 
@@ -161,6 +200,7 @@ WITH
     SUM(budget_amount) AS budget_amount,
     ABS(SUM(budget_amount)) AS budget_amount_abs
   FROM budget_values
+  WHERE category_raw != "EXCLUDE_CATEGORY"
   GROUP BY 1,2,3
   )
   , transactions_agg AS (
@@ -172,6 +212,7 @@ WITH
     ABS(SUM(actual_amount)) AS actual_amount_abs,
     COUNT(DISTINCT transaction_id) AS transactions_count
   FROM add_transaction_categories
+  WHERE category_updated != "EXCLUDE_CATEGORY"
   GROUP BY 1,2,3
   )
   , join_transactions_agg AS (
