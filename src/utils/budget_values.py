@@ -254,6 +254,15 @@ class BudgetValues:
                 "detail_category": "Other",
                 "budget_amount": 0.0,
             },
+            # EXCLUDE_CATEGORY
+            {  # to exclude transactions that should not be included e.g. transfers between accts and credit card payments
+                "category_raw": "EXCLUDE_CATEGORY",
+                "subcategory_raw": "EXCLUDE_CATEGORY",
+                "category": "Exclude",
+                "subcategory": "Exclude",
+                "detail_category": None,
+                "budget_amount": 0.0,
+            },
             # BANK_FEES
             {
                 "category_raw": "BANK_FEES",
