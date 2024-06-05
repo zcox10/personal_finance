@@ -31,12 +31,12 @@ BACKFILL = False
 ADD_TEST_TRANSACTIONS = False  # to add a removed transaction or not in generate_transactions_dfs()
 
 # CONSTANTS: plaid investments
-START_DATE = (  # if backfill, use 730 days ago as START_DATE. Else, use today
+START_DATE = (  # if backfill, use 730 days ago as START_DATE. Else, use (7 + OFFSET) days ago today
     (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
     if BACKFILL
-    else (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    else (datetime.now() - timedelta(days=(7 + OFFSET))).strftime("%Y-%m-%d")
 )
-END_DATE = (datetime.now() - timedelta(days=6)).strftime("%Y-%m-%d")
+END_DATE = (datetime.now() - timedelta(days=(6 + OFFSET))).strftime("%Y-%m-%d")
 
 # initialize main clients
 bq_client = bigquery.Client()
