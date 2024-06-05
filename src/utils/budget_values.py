@@ -166,10 +166,26 @@ class BudgetValues:
             },
             # TRANSFER_OUT, negative amounts
             {
-                "category_raw": "TRANSFER_OUT",  # BoA -> Schwab investment
-                "subcategory_raw": "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS",
+                "category_raw": "TRANSFER_OUT",  # Coinbase
+                "subcategory_raw": "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS_CRYPTO",
                 "category": "Personal Investments",
-                "subcategory": "FIX",  # TODO: should be merchant name, includes Coinbase, Schwab, Fundrise, Binance, etc.
+                "subcategory": "Crypto",
+                "detail_category": None,
+                "budget_amount": 0.0,
+            },
+            {
+                "category_raw": "TRANSFER_OUT",  # Fundrise
+                "subcategory_raw": "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS_REAL_ESTATE",
+                "category": "Personal Investments",
+                "subcategory": "Real Estate",
+                "detail_category": None,
+                "budget_amount": 0.0,
+            },
+            {
+                "category_raw": "TRANSFER_OUT",  # Schwab
+                "subcategory_raw": "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS_STOCKS",
+                "category": "Personal Investments",
+                "subcategory": "Stocks",
                 "detail_category": None,
                 "budget_amount": 0.0,
             },

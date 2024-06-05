@@ -79,15 +79,23 @@ WITH
 
       -- income/deposits
       WHEN merchant.merchant_name = "Spotify" AND amount < 0 THEN "INCOME"
-      WHEN merchant.merchant_name = "Coinbase" AND amount < 0 THEN "TRANSFER_IN"
-      WHEN REGEXP_CONTAINS(merchant.name, r"MSPBNA DES") THEN "TRANSFER_IN"
+
+      -- investments
+      WHEN
+        ( -- if CREDIT amount (amount < 0), then income deposit (TRANSFER_IN); else TRANSFER_OUT
+          merchant.merchant_name IN ("Coinbase", "Fundrise Real Estate", "Binance.us", "Gemini") 
+          OR counterparties[SAFE_OFFSET(0)].name = "Charles Schwab"
+          OR REGEXP_CONTAINS(merchant.name, r"MSPBNA DES")
+        ) THEN IF(amount < 0, "TRANSFER_IN", "TRANSFER_OUT")
 
       -- transportation
       WHEN merchant.merchant_name = "Downtown Tempe Authority" THEN "TRANSPORTATION"
 
       -- rent
-      WHEN REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in") THEN "RENT_AND_UTILITIES"
-      WHEN merchant.merchant_name = "Pay Ready Parent" THEN "RENT_AND_UTILITIES"
+      WHEN 
+        REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in") 
+        OR merchant.merchant_name = "Pay Ready Parent" 
+      THEN "RENT_AND_UTILITIES"
 
       -- food/drink
       WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK"
@@ -106,15 +114,30 @@ WITH
 
       -- income/deposits
       WHEN merchant.merchant_name = "Spotify" AND amount < 0 THEN "INCOME_WAGES"
-      WHEN merchant.merchant_name = "Coinbase" AND amount < 0 THEN "TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS"
-      WHEN REGEXP_CONTAINS(merchant.name, r"MSPBNA DES") THEN "TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS"
+
+      -- investments / IN
+      WHEN
+        ( -- if CREDIT amount (amount > 0), then income deposit (TRANSFER_IN); else TRANSFER_OUT
+          merchant.merchant_name IN ("Coinbase", "Fundrise Real Estate", "Binance.us", "Gemini") 
+          OR counterparties[SAFE_OFFSET(0)].name = "Charles Schwab"
+          OR REGEXP_CONTAINS(merchant.name, r"MSPBNA DES")
+        ) 
+        AND amount < 0 
+      THEN "TRANSFER_IN_INVESTMENT_AND_RETIREMENT_FUNDS"
+
+      -- investments / OUT
+      WHEN merchant.merchant_name IN ("Coinbase", "Binance.us", "Gemini") AND amount > 0 THEN "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS_CRYPTO"
+      WHEN merchant.merchant_name IN ("Fundrise Real Estate") AND amount > 0 THEN "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS_REAL_ESTATE"
+      WHEN counterparties[SAFE_OFFSET(0)].name = "Charles Schwab" AND amount > 0 THEN "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS_STOCKS"
 
       -- transportation
       WHEN merchant.merchant_name = "Downtown Tempe Authority" THEN "TRANSPORTATION_PARKING"
 
       -- rent
-      WHEN REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in") THEN "RENT_AND_UTILITIES_RENT"
-      WHEN merchant.merchant_name = "Pay Ready Parent" THEN "RENT_AND_UTILITIES_RENT"
+      WHEN 
+        REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in") 
+        OR merchant.merchant_name = "Pay Ready Parent" 
+      THEN "RENT_AND_UTILITIES_RENT"
 
       -- personal payment transfers
       WHEN personal_finance_category.detailed = "TRANSFER_OUT_ACCOUNT_TRANSFER" AND merchant.merchant_name NOT IN ("Venmo", "Zelle", "Bank of America", "Chase Bank") THEN "TRANSFER_OUT_OTHER_TRANSFER_OUT"
