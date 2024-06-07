@@ -12,7 +12,6 @@ WITH
     institution_name,
     PARSE_DATE("%Y%m%d", _TABLE_SUFFIX) AS transaction_date,
     IF(account_type = "credit", balance.current * -1, balance.current) AS actual_amount,
-    ABS(balance.current) AS actual_amount_abs,
     balance.currency_code
   FROM `zsc-personal.personal_finance.financial_accounts_*`
   )
@@ -66,7 +65,6 @@ WITH
     FORMAT_DATE("%Y-%m", DATE_TRUNC(transaction_date, MONTH)) AS transaction_month,
     IF(amount > 0, "DEBIT", "CREDIT") AS transaction_type,
     amount * -1 AS actual_amount,
-    ABS(amount) AS actual_amount_abs,
     currency_code,
 
     personal_finance_category.primary AS category_raw,
@@ -220,8 +218,7 @@ WITH
     transaction_month,
     category,
     subcategory,
-    SUM(budget_amount) AS budget_amount,
-    ABS(SUM(budget_amount)) AS budget_amount_abs
+    SUM(budget_amount) AS budget_amount
   FROM budget_values
   WHERE category_raw != "EXCLUDE_CATEGORY"
   GROUP BY 1,2,3
@@ -232,7 +229,6 @@ WITH
     category,
     subcategory,
     SUM(actual_amount) AS actual_amount,
-    ABS(SUM(actual_amount)) AS actual_amount_abs,
     COUNT(DISTINCT transaction_id) AS transactions_count
   FROM add_transaction_categories
   WHERE category_updated != "EXCLUDE_CATEGORY"
@@ -244,16 +240,14 @@ WITH
     category,
     subcategory,
     budget_amount,
-    budget_amount_abs,
     IFNULL(actual_amount, 0) AS actual_amount,
-    IFNULL(actual_amount_abs, 0) AS actual_amount_abs,
     IFNULL(transactions_count, 0) AS transactions_count
   FROM budget_values_agg
   LEFT JOIN transactions_agg
   USING (transaction_month, category, subcategory)
   WHERE 
-    budget_amount_abs > 0
-    OR actual_amount_abs > 0
+    -- only include categories that have budget or actual spending
+    (budget_amount + actual_amount) != 0
   )
   , union_data AS (
   SELECT 
@@ -272,10 +266,8 @@ WITH
     transaction_month,
     CAST(NULL AS STRING) AS transaction_type,
     budget_amount,
-    budget_amount_abs,
     transactions_count,
     actual_amount,
-    actual_amount_abs,
     CAST(NULL AS STRING) AS currency_code,
     CAST(NULL AS STRING) AS category_raw,
     CAST(NULL AS STRING) AS subcategory_raw,
@@ -317,10 +309,8 @@ WITH
     transaction_type,
 
     CAST(NULL AS FLOAT64) AS budget_amount,
-    CAST(NULL AS FLOAT64) AS budget_amount_abs,
     CAST(NULL AS INT64) AS transactions_count,
     actual_amount,
-    actual_amount_abs,
     currency_code,
     category_raw,
     subcategory_raw,
@@ -361,10 +351,8 @@ WITH
     FORMAT_DATE("%Y-%m", DATE_TRUNC(transaction_date, MONTH)) AS transaction_month,
     CAST(NULL AS STRING) AS transaction_type,
     CAST(NULL AS FLOAT64) AS budget_amount,
-    CAST(NULL AS FLOAT64) AS budget_amount_abs,
     CAST(NULL AS INT64) AS transactions_count,
     actual_amount,
-    actual_amount_abs,
     currency_code,
     CAST(NULL AS STRING) AS category_raw,
     CAST(NULL AS STRING) AS subcategory_raw,
@@ -405,10 +393,8 @@ WITH
     FORMAT_DATE("%Y-%m", DATE_TRUNC(institution_price_date, MONTH)) AS transaction_month,
     CAST(NULL AS STRING) AS transaction_type,
     CAST(NULL AS FLOAT64) AS budget_amount,
-    CAST(NULL AS FLOAT64) AS budget_amount_abs,
     CAST(NULL AS INT64) AS transactions_count,
     institution_value AS actual_amount,
-    ABS(institution_value) AS actual_amount_abs,
     currency_code,
     CAST(NULL AS STRING) AS category_raw,
     CAST(NULL AS STRING) AS subcategory_raw,
