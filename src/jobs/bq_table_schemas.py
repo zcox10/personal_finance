@@ -1200,12 +1200,6 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "budget_amount_abs",
-                "type": "FLOAT",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
                 "name": "transactions_count",
                 "type": "INTEGER",
                 "mode": "NULLABLE",
@@ -1213,12 +1207,6 @@ class BqTableSchemas:
             },
             {
                 "name": "actual_amount",
-                "type": "FLOAT",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "actual_amount_abs",
                 "type": "FLOAT",
                 "mode": "NULLABLE",
                 "description": "",

@@ -13,6 +13,8 @@ class QueryJobs:
             schema=self.__bq_tables.personal_finance_tableau_YYYYMMDD(), offset=offset
         )
 
+        print(f"Creating table at `{tableau_bq['full_table_name']}`")
+
         self.__bq.create_query_bq_table(
             query=self.__bq.sql_file_to_string(sql_path),
             destination_table=tableau_bq["full_table_name"],
