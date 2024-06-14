@@ -152,9 +152,6 @@ class PlaidUtils:
             tuple: A tuple containing:
                 - pandas.DataFrame: A DataFrame containing transaction data.
                 - set: A set containing transaction IDs of removed transactions.
-
-        Raises:
-            ApiException: If an error occurs during the API request.
         """
 
         # get transactions
