@@ -189,6 +189,7 @@ WITH
   , budget_values AS (
   SELECT 
     FORMAT_DATE("%Y-%m", PARSE_DATE("%Y%m", _TABLE_SUFFIX)) AS transaction_month,
+    DATE(FORMAT_DATE("%Y-%m-%d", PARSE_DATE("%Y%m", _TABLE_SUFFIX))) AS transaction_date,
     *
   FROM `zsc-personal.budget_values.budget_values_*`
   )
@@ -215,13 +216,14 @@ WITH
   )
   , budget_values_agg AS (
   SELECT 
+    transaction_date,
     transaction_month,
     category,
     subcategory,
     SUM(budget_amount) AS budget_amount
   FROM budget_values
   WHERE category_raw != "EXCLUDE_CATEGORY"
-  GROUP BY 1,2,3
+  GROUP BY 1,2,3,4
   )
   , transactions_agg AS (
   SELECT 
@@ -236,6 +238,7 @@ WITH
   )
   , join_transactions_agg AS (
   SELECT 
+    transaction_date,
     transaction_month,
     category,
     subcategory,
@@ -262,7 +265,7 @@ WITH
     CAST(NULL AS STRING) AS account_subtype,
     CAST(NULL AS STRING) AS institution_name,
     CAST(NULL AS STRING) AS transaction_id,
-    CAST(NULL AS DATE) AS transaction_date,
+    transaction_date,
     transaction_month,
     CAST(NULL AS STRING) AS transaction_type,
     budget_amount,
