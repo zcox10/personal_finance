@@ -213,28 +213,21 @@ WITH
     g.category_updated = b.category_raw
     AND g.subcategory_updated = b.subcategory_raw
     AND g.transaction_month = b.transaction_month
-  )
-  , budget_values_agg AS (
-  SELECT 
-    transaction_date,
-    transaction_month,
-    category,
-    subcategory,
-    SUM(budget_amount) AS budget_amount
-  FROM budget_values
-  WHERE category_raw != "EXCLUDE_CATEGORY"
-  GROUP BY 1,2,3,4
+  WHERE g.category_updated != "EXCLUDE_CATEGORY"
   )
   , transactions_agg AS (
   SELECT 
     transaction_month,
     category,
     subcategory,
+
+    -- cast to string to join on budget_values
+    IFNULL(detail_category, "null") AS detail_category,
+
     SUM(actual_amount) AS actual_amount,
     COUNT(DISTINCT transaction_id) AS transactions_count
   FROM add_transaction_categories
-  WHERE category_updated != "EXCLUDE_CATEGORY"
-  GROUP BY 1,2,3
+  GROUP BY 1,2,3,4
   )
   , join_transactions_agg AS (
   SELECT 
@@ -242,12 +235,21 @@ WITH
     transaction_month,
     category,
     subcategory,
+    
+    -- cast back to string
+    IF(detail_category = "null", CAST(NULL AS STRING), detail_category) AS detail_category,
+
     budget_amount,
     IFNULL(actual_amount, 0) AS actual_amount,
     IFNULL(transactions_count, 0) AS transactions_count
-  FROM budget_values_agg
+  FROM ( -- detail_category can be null, and need to join on this field
+    SELECT 
+      * EXCEPT(detail_category),
+      IFNULL(detail_category, "null") AS detail_category
+    FROM budget_values
+    )
   LEFT JOIN transactions_agg
-  USING (transaction_month, category, subcategory)
+  USING (transaction_month, category, subcategory, detail_category)
   WHERE 
     -- only include categories that have budget or actual spending
     (budget_amount + actual_amount) != 0
@@ -278,8 +280,9 @@ WITH
     CAST(NULL AS STRING) AS subcategory_updated,
     category,
     subcategory,
-    CAST(NULL AS STRING) AS detail_category,
-    CONCAT(category, " - ", subcategory) AS full_category,
+    detail_category,
+    CONCAT(category, " - ", subcategory) AS final_category,
+    CONCAT(category, " - ", subcategory, IF(detail_category IS NULL, "", CONCAT(" - ", detail_category))) AS full_category,
     CAST(NULL AS STRING) AS payment_channel,
     CAST(NULL AS STRING) AS merchant_name,
     CAST(NULL AS STRING) AS merchant_name_raw,
@@ -322,6 +325,7 @@ WITH
     category,
     subcategory,
     detail_category,
+    CONCAT(category, " - ", subcategory) AS final_category,
     CONCAT(category, " - ", subcategory, IF(detail_category IS NULL, "", CONCAT(" - ", detail_category))) AS full_category,
     payment_channel,
     merchant_name,
@@ -364,6 +368,7 @@ WITH
     CAST(NULL AS STRING) AS category,
     CAST(NULL AS STRING) AS subcategory,
     CAST(NULL AS STRING) AS detail_category,
+    CAST(NULL AS STRING) AS final_category,
     CAST(NULL AS STRING) AS full_category,
     CAST(NULL AS STRING) AS payment_channel,
     CAST(NULL AS STRING) AS merchant_name,
@@ -406,6 +411,7 @@ WITH
     CAST(NULL AS STRING) AS category,
     CAST(NULL AS STRING) AS subcategory,
     CAST(NULL AS STRING) AS detail_category,
+    CAST(NULL AS STRING) AS final_category,
     CAST(NULL AS STRING) AS full_category,
     CAST(NULL AS STRING) AS payment_channel,
     CAST(NULL AS STRING) AS merchant_name,

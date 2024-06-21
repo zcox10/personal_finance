@@ -1260,6 +1260,12 @@ class BqTableSchemas:
                 "description": "",
             },
             {
+                "name": "final_category",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
                 "name": "full_category",
                 "type": "STRING",
                 "mode": "NULLABLE",
