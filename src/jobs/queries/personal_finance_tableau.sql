@@ -1,3 +1,19 @@
+CREATE TEMPORARY FUNCTION TITLE(input STRING)
+RETURNS STRING
+LANGUAGE js AS """
+function titleCase(input) {
+  const stopWords = ['and', 'or', 'but', 'the', 'a', 'an', 'in', 'on', 'at', 'to'];
+  return input.split(' ').map(word => {
+    if (stopWords.includes(word.toLowerCase())) {
+      return word.toLowerCase();
+    } else {
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    }
+  }).join(' ');
+}
+return titleCase(input);
+""";
+
 WITH
   get_accounts AS (
   SELECT 
@@ -7,8 +23,8 @@ WITH
     account_mask,
     account_name,
     account_official_name,
-    account_type,
-    account_subtype,
+    TITLE(account_type) AS account_type,
+    TITLE(account_subtype) AS account_subtype,
     institution_name,
     PARSE_DATE("%Y%m%d", _TABLE_SUFFIX) AS transaction_date,
     IF(account_type = "credit", balance.current * -1, balance.current) AS actual_amount,
