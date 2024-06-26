@@ -268,7 +268,7 @@ WITH
   USING (transaction_month, category, subcategory, detail_category)
   WHERE 
     -- only include categories that have budget or actual spending
-    (budget_amount + actual_amount) != 0
+    (budget_amount + IFNULL(actual_amount, 0)) != 0
   )
   , union_data AS (
   SELECT 
