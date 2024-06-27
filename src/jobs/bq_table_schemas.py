@@ -1134,37 +1134,13 @@ class BqTableSchemas:
                 "description": "",
             },
             {
-                "name": "account_mask",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
                 "name": "account_name",
                 "type": "STRING",
                 "mode": "NULLABLE",
                 "description": "",
             },
             {
-                "name": "account_official_name",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "account_type",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "account_subtype",
-                "type": "STRING",
-                "mode": "NULLABLE",
-                "description": "",
-            },
-            {
-                "name": "institution_name",
+                "name": "account_subname",
                 "type": "STRING",
                 "mode": "NULLABLE",
                 "description": "",
