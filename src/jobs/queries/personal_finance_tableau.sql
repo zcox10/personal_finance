@@ -20,12 +20,21 @@ WITH
     PARSE_DATE("%Y%m%d", _TABLE_SUFFIX) AS partition_date,
     item_id,
     account_id,
-    account_mask,
-    account_name,
-    account_official_name,
-    TITLE(account_type) AS account_type,
-    TITLE(account_subtype) AS account_subtype,
     institution_name,
+    
+    CASE 
+      WHEN institution_name = "E*TRADE Financial" THEN "E-Trade"
+      WHEN account_subtype = "cryptocurrency" THEN "Crypto"
+      ELSE institution_name
+    END AS account_name,
+
+    CASE 
+      WHEN institution_name = "Charles Schwab" THEN IF(account_name = "Schwab 529 Plan", "529", account_name)
+      WHEN institution_name IN ("Bank of America", "Vanguard", "Chase", "E*TRADE Financial", "Fundrise") THEN TITLE(account_subtype)
+      WHEN account_subtype = "cryptocurrency" THEN account_name
+      ELSE institution_name
+    END AS account_subname,
+
     PARSE_DATE("%Y%m%d", _TABLE_SUFFIX) AS transaction_date,
     IF(account_type = "credit", balance.current * -1, balance.current) AS actual_amount,
     balance.currency_code
@@ -35,12 +44,9 @@ WITH
   SELECT
     item_id,
     account_id,
-    account_mask,
-    account_name,
-    account_official_name,
-    account_type,
-    account_subtype,
     institution_name,
+    account_name,
+    account_subname,
   FROM get_accounts
   QUALIFY ROW_NUMBER() OVER(PARTITION BY item_id, account_id ORDER BY transaction_date DESC) = 1
   )
@@ -62,7 +68,7 @@ WITH
   , join_investments AS (
   SELECT 
     i.*,
-    acct.* EXCEPT(item_id, account_id)
+    acct.* EXCEPT(item_id, account_id, institution_name)
   FROM get_investments i
   LEFT JOIN accounts_distinct acct
   USING (item_id, account_id)
@@ -185,7 +191,7 @@ WITH
     merchant.name AS name_raw,
 
     counterparties[SAFE_OFFSET(0)].type AS merchant_type,
-    acct.* EXCEPT(item_id, account_id)
+    acct.* EXCEPT(item_id, account_id, institution_name)
   FROM `zsc-personal.personal_finance.plaid_transactions_*`
   LEFT JOIN removed_transactions r
   USING (item_id, account_id, transaction_id)
@@ -276,12 +282,8 @@ WITH
     "TRANSACTIONS_AGG" AS metric_category,
     CAST(NULL AS STRING) AS item_id,
     CAST(NULL AS STRING) AS account_id,
-    CAST(NULL AS STRING) AS account_mask,
     CAST(NULL AS STRING) AS account_name,
-    CAST(NULL AS STRING) AS account_official_name,
-    CAST(NULL AS STRING) AS account_type,
-    CAST(NULL AS STRING) AS account_subtype,
-    CAST(NULL AS STRING) AS institution_name,
+    CAST(NULL AS STRING) AS account_subname,
     CAST(NULL AS STRING) AS transaction_id,
     transaction_date,
     transaction_month,
@@ -319,12 +321,8 @@ WITH
     "TRANSACTIONS" AS metric_category,
     item_id,
     account_id,
-    account_mask,
     account_name,
-    account_official_name,
-    account_type,
-    account_subtype,
-    institution_name,
+    account_subname,
     transaction_id,
     transaction_date,
     transaction_month,
@@ -363,12 +361,8 @@ WITH
     "ACCOUNTS" AS metric_category,
     item_id,
     account_id,
-    account_mask,
     account_name,
-    account_official_name,
-    account_type,
-    account_subtype,
-    institution_name,
+    account_subname,
     CAST(NULL AS STRING) AS transaction_id,
     transaction_date,
     FORMAT_DATE("%Y-%m", DATE_TRUNC(transaction_date, MONTH)) AS transaction_month,
@@ -406,12 +400,8 @@ WITH
     "INVESTMENTS" AS metric_category,
     item_id,
     account_id,
-    account_mask,
     account_name,
-    account_official_name,
-    account_type,
-    account_subtype,
-    institution_name,
+    account_subname,
     CAST(NULL AS STRING) AS transaction_id,
     institution_price_date AS transaction_date,
     FORMAT_DATE("%Y-%m", DATE_TRUNC(institution_price_date, MONTH)) AS transaction_month,
