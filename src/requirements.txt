@@ -6,7 +6,7 @@ google-cloud-scheduler==2.13.3
 google-cloud-functions==1.16.3
 python-dateutil==2.9.0
 db-dtypes==1.2.0
-pandas==2.0.3
+pandas==2.2.2
 python-Levenshtein==0.25.1
 plaid_python==21.0.0
 notebook==7.0.7
