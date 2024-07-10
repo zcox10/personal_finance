@@ -2,7 +2,7 @@ class CloudSchemas:
     def __init__(self):
         self.project_id = "zsc-personal"
         self.source = "."
-        self.runtime = "python38"
+        self.runtime = "python39"
         self.region = "us-west1"
         self.timeout = "540"
         self.memory = "512MB"
