@@ -180,8 +180,8 @@ def run_personal_finance_queries(event, context):
     print("SUCCESS: Personal Finance Tableau query done!")
 
 
-def run_table_retention(event, context):
-    print("\n******************** STARTING table_retention ********************")
+def run_data_table_retention(event, context):
+    print("\n******************** STARTING data_table_retention ********************")
 
     # only keep partitions in last 30d
     PROJECT_ID = "zsc-personal"
@@ -230,7 +230,7 @@ def run_delete_latest_tables(event, context):
 
 
 # def main_test(event, context):
-#     run_table_retention("hello", "world")
+#     run_data_table_retention("hello", "world")
 
 #     run_delete_latest_tables("hello", "world")
 
