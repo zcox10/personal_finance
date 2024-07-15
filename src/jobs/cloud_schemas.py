@@ -94,6 +94,23 @@ class CloudSchemas:
             "schedule": "45 10 * * *",  # 10:45am UTC
         }
 
+    def data_table_retention(self):
+        return {
+            "project_id": self.project_id,
+            "function_name": "data-table-retention-workflow",
+            "job_name": "data-table-retention-scheduler",
+            "trigger_topic": "data-table-retention-pubsub",
+            "entry_point": "run_data_table_retention",
+            "source": self.source,
+            "runtime": self.runtime,
+            "region": self.region,
+            "timeout": self.timeout,
+            "memory": self.memory,
+            "service_account": self.service_account,
+            "timezone": self.timezone,
+            "schedule": "00 11 * * *",  # 11:00am UTC
+        }
+
     def test_job(self):
         return {
             "project_id": self.project_id,
