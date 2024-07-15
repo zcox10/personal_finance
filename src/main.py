@@ -38,6 +38,9 @@ START_DATE = (  # if backfill, use 730 days ago as START_DATE. Else, use (7 + OF
 )
 END_DATE = (datetime.now() - timedelta(days=(6 + OFFSET))).strftime("%Y-%m-%d")
 
+# Retention date
+RETENTION_DATE = (datetime.now() - timedelta(days=(30 + OFFSET))).strftime("%Y%m%d")
+
 # initialize main clients
 bq_client = bigquery.Client()
 bq = BqUtils(bq_client=bq_client)
@@ -180,25 +183,31 @@ def run_personal_finance_queries(event, context):
     print("SUCCESS: Personal Finance Tableau query done!")
 
 
-def run_delete_all_tables(event, context):
-    print("\n******************** STARTING delete_all_tables ********************")
+def run_table_retention(event, context):
+    print("\n******************** STARTING table_retention ********************")
+
+    # only keep partitions in last 30d
+    PROJECT_ID = "zsc-personal"
+    DATASET_ID = "personal_finance"
+    RETENTION_DATE = (datetime.now() - timedelta(days=(29))).strftime("%Y%m%d")
+
     tables = [
-        "financial_accounts_YYYYMMDD",
-        "plaid_cursors_YYYYMMDD",
-        "plaid_removed_transactions_YYYYMMDD",
-        "plaid_transactions_YYYYMMDD",
-        "temp_plaid_cursors",
-        "plaid_investment_holdings_YYYYMMDD",
-        "plaid_investment_transactions_YYYYMMDD",
+        # "plaid_cursors_YYYYMMDD",
+        "personal_finance_tableau_YYYYMMDD",
     ]
 
-    for table in tables:
-        bq.delete_all_partitions(
-            project_id="zsc-personal",
-            dataset_id="personal_finance",
-            table_id=table,
-            confirm=False,
+    for table_id in tables:
+        table_partitions = bq.get_table_range_partitions(
+            project_id=PROJECT_ID,
+            dataset_id=DATASET_ID,
+            table_id=table_id,
+            start_date=None,
+            end_date=RETENTION_DATE,
         )
+
+    bq.delete_list_of_tables(
+        project_id=PROJECT_ID, dataset_id=DATASET_ID, table_ids=table_partitions, confirm=False
+    )
 
 
 def run_delete_latest_tables(event, context):
@@ -223,29 +232,31 @@ def run_delete_latest_tables(event, context):
         )
 
 
-# def main_test(event, context):
-#     run_delete_latest_tables("hello", "world")
+def main_test(event, context):
+    run_table_retention("hello", "world")
 
-#     time.sleep(3)
+    # run_delete_latest_tables("hello", "world")
 
-#     run_financial_accounts("hello", "world")
+    # time.sleep(3)
 
-#     time.sleep(3)
+    # run_financial_accounts("hello", "world")
 
-#     run_budget_values("hello", "world")
+    # time.sleep(3)
 
-#     time.sleep(3)
+    # run_budget_values("hello", "world")
 
-#     run_plaid_investments("hello", "world")
+    # time.sleep(3)
 
-#     time.sleep(3)
+    # run_plaid_investments("hello", "world")
 
-#     run_plaid_transactions("hello", "world")
+    # time.sleep(3)
 
-#     time.sleep(3)
+    # run_plaid_transactions("hello", "world")
 
-#     run_personal_finance_queries("hello", "world")
+    # time.sleep(3)
+
+    # run_personal_finance_queries("hello", "world")
 
 
-# if __name__ == "__main__":
-#     main_test("hello", "world")
+if __name__ == "__main__":
+    main_test("hello", "world")
