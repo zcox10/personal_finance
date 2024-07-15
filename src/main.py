@@ -38,9 +38,6 @@ START_DATE = (  # if backfill, use 730 days ago as START_DATE. Else, use (7 + OF
 )
 END_DATE = (datetime.now() - timedelta(days=(6 + OFFSET))).strftime("%Y-%m-%d")
 
-# Retention date
-RETENTION_DATE = (datetime.now() - timedelta(days=(30 + OFFSET))).strftime("%Y%m%d")
-
 # initialize main clients
 bq_client = bigquery.Client()
 bq = BqUtils(bq_client=bq_client)
