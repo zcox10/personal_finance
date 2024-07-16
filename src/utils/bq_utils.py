@@ -56,9 +56,7 @@ class BqUtils:
         elif partition_format == "YYYYMMDDHH" or partition_format == "YYYYMMDDTHH":
             return dt.now(timezone.utc) + relativedelta(hours=offset)
         else:
-            print(
-                "\nMust input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format"
-            )
+            print("\nMust input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
             return
 
     def get_partition_date(self, offset, partition_format):
@@ -87,10 +85,43 @@ class BqUtils:
         elif partition_format == "YYYYMMDDTHH":
             return date_utc.strftime("%Y%m%dT%H")
         else:
-            print(
-                "\nMust input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format"
-            )
-            return
+            raise ValueError("\nMust input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
+
+    def get_date_offset(self, date_str, partition_format):
+        """
+        Calculate the offset from the current date to the given date based on the partition format.
+
+        Args:
+            date_str (str): The target date as a string.
+            partition_format (str): The format of the partition ('YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH').
+
+        Returns:
+            int: The offset to apply.
+        """
+        current_date = dt.utcnow()
+
+        if partition_format == "YYYYMMDD":
+            target_date = dt.strptime(date_str, "%Y-%m-%d")
+            delta = target_date - current_date
+            return delta.days
+
+        elif partition_format == "YYYYMM":
+            target_date = dt.strptime(date_str, "%Y-%m")
+            delta = relativedelta(target_date, current_date)
+            return delta.years * 12 + delta.months
+
+        elif partition_format == "YYYYMMDDHH":
+            target_date = dt.strptime(date_str, "%Y-%m-%dT%H")
+            delta = target_date - current_date
+            return int(delta.total_seconds() // 3600)
+
+        elif partition_format == "YYYYMMDDTHH":
+            target_date = dt.strptime(date_str, "%Y-%m-%dT%H")
+            delta = target_date - current_date
+            return int(delta.total_seconds() // 3600)
+
+        else:
+            raise ValueError("Must input 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH', or 'YYYYMMDDTHH' for partition_format")
 
     def get_bq_client(self):
         """
@@ -133,9 +164,7 @@ class BqUtils:
         else:
             return table_id
 
-    def get_table_range_partitions(
-        self, project_id, dataset_id, table_id, start_date=None, end_date=None
-    ):
+    def get_table_range_partitions(self, project_id, dataset_id, table_id, start_date=None, end_date=None):
         """
         Retrieves full table IDs for a matching table pattern and partition range.
 
@@ -155,9 +184,7 @@ class BqUtils:
 
         def validate_dates(partition_format, start_date, end_date):
             if not partition_format:
-                raise ValueError(
-                    "Table does not have a valid partition format: 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH'"
-                )
+                raise ValueError("Table does not have a valid partition format: 'YYYYMMDD', 'YYYYMM', 'YYYYMMDDHH'")
             if start_date is None and end_date is None:
                 raise ValueError("Need valid start and/or end partition")
             if start_date and len(partition_format) != len(start_date):
@@ -185,9 +212,7 @@ class BqUtils:
                         f"Partition format, {partition_format}, does not match table partition's format, {table_id}"
                     )
 
-                if (start_date is None or partition >= start_date) and (
-                    end_date is None or partition < end_date
-                ):
+                if (start_date is None or partition >= start_date) and (end_date is None or partition < end_date):
                     final_table_ids.append(table_prefix + partition)
 
             return final_table_ids
@@ -248,9 +273,9 @@ class BqUtils:
         matching_tables = [table for table in tables if table.table_id.startswith(table_prefix)]
 
         # Get the latest partition
-        latest_partition = max(
-            matching_tables, key=lambda table: table.table_id.split("_")[-1]
-        ).full_table_id.replace(":", ".")
+        latest_partition = max(matching_tables, key=lambda table: table.table_id.split("_")[-1]).full_table_id.replace(
+            ":", "."
+        )
         return latest_partition
 
     def get_latest_table_partition(self, dataset_id, table_id):
@@ -328,12 +353,8 @@ class BqUtils:
             schema (dict): The updated table schema for the "table_id" value representing the latest partition
         """
 
-        schema["table_id"] = self.get_latest_table_partition(
-            schema["dataset_id"], schema["table_id"]
-        )
-        schema["full_table_name"] = (
-            schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
-        )
+        schema["table_id"] = self.get_latest_table_partition(schema["dataset_id"], schema["table_id"])
+        schema["full_table_name"] = schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
         return schema
 
     def update_table_schema_partition(self, schema, offset):
@@ -352,9 +373,7 @@ class BqUtils:
         # replace {table_name}_YYYYMMDD with specific partition e.g. {table_name}_20240401
         new_table_id = self.update_single_table_partition(schema["table_id"], offset)
         schema["table_id"] = new_table_id
-        schema["full_table_name"] = (
-            schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
-        )
+        schema["full_table_name"] = schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
         return schema
 
     def concat_table_name(self, project_id, dataset_id, table_id):
@@ -411,9 +430,7 @@ class BqUtils:
                 table_status = self.does_bq_table_exist(table[0], table[1], table[2])
                 table_statuses.append(table_status)
                 if not table_status:
-                    print(
-                        f"`{self.concat_table_name(table[0], table[1], table[2])}` does not exist yet!"
-                    )
+                    print(f"`{self.concat_table_name(table[0], table[1], table[2])}` does not exist yet!")
 
             # mark True if all tables exist, else False
             all_tables_exist = all(table_statuses)
@@ -449,9 +466,7 @@ class BqUtils:
             job_config.schema = table_schema
             df = self.cast_dataframe_for_parquet(df, table_schema)
 
-        load_job = self.bq_client.load_table_from_dataframe(
-            df, full_table_name, job_config=job_config
-        )
+        load_job = self.bq_client.load_table_from_dataframe(df, full_table_name, job_config=job_config)
         load_job.result()
 
         if load_job.state == "DONE":

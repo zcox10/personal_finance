@@ -115,6 +115,7 @@ WITH
       WHEN 
         REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in") 
         OR merchant.merchant_name = "Pay Ready Parent" 
+        OR REGEXP_CONTAINS(merchant.name, r"Irina Tesis")
       THEN "RENT_AND_UTILITIES"
 
       -- food/drink
@@ -122,6 +123,21 @@ WITH
       
       -- education
       WHEN merchant.name = "SEAS GRAD ADM OFF DEPO" THEN "GENERAL_SERVICES"
+
+      -- shopping
+      WHEN merchant.merchant_name = "Amazon Prime" THEN "GENERAL_MERCHANDISE"
+
+      -- phone
+      WHEN merchant.merchant_name = "Apple" THEN "RENT_AND_UTILITIES"
+
+      -- tech
+      WHEN 
+        merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI") 
+        OR STARTS_WITH(merchant.name, "CLOUD")
+      THEN "GENERAL_SERVICES"
+
+      -- cannabis
+      WHEN merchant.merchant_name IN ("Tru Med") THEN "ENTERTAINMENT"
       
       -- end
       ELSE personal_finance_category.primary
@@ -148,7 +164,7 @@ WITH
       -- investments / OUT
       WHEN merchant.merchant_name IN ("Coinbase", "Binance.us", "Gemini") AND amount > 0 THEN "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS_CRYPTO"
       WHEN merchant.merchant_name IN ("Fundrise Real Estate") AND amount > 0 THEN "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS_REAL_ESTATE"
-      WHEN counterparties[SAFE_OFFSET(0)].name = "Charles Schwab" AND amount > 0 THEN "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS_STOCKS"
+      WHEN counterparties[SAFE_OFFSET(0)].name IN ("Charles Schwab", "Az Management & Inves") AND amount > 0 THEN "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS_STOCKS"
 
       -- transportation
       WHEN merchant.merchant_name = "Downtown Tempe Authority" THEN "TRANSPORTATION_PARKING"
@@ -157,6 +173,7 @@ WITH
       WHEN 
         REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in") 
         OR merchant.merchant_name = "Pay Ready Parent" 
+        OR REGEXP_CONTAINS(merchant.name, r"Irina Tesis")
       THEN "RENT_AND_UTILITIES_RENT"
 
       -- personal payment transfers
@@ -167,6 +184,21 @@ WITH
       
       -- education
       WHEN merchant.name = "SEAS GRAD ADM OFF DEPO" THEN "GENERAL_SERVICES_EDUCATION"
+
+      -- shopping
+      WHEN merchant.merchant_name = "Amazon Prime" THEN "GENERAL_MERCHANDISE_ONLINE_MARKETPLACES"
+
+      -- phone
+      WHEN merchant.merchant_name = "Apple" THEN "RENT_AND_UTILITIES_TELEPHONE"
+
+      -- tech
+      WHEN 
+        merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI") 
+        OR STARTS_WITH(merchant.name, "CLOUD")
+      THEN "GENERAL_SERVICES_TECH"
+
+      -- cannabis
+      WHEN merchant.merchant_name IN ("Tru Med") THEN "ENTERTAINMENT_OTHER_ENTERTAINMENT"
 
       -- end
       ELSE personal_finance_category.detailed
