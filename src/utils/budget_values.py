@@ -49,7 +49,10 @@ class BudgetValues:
 
         # upload df to budget_values_YYYYMM. "WRITE_TRUNCATE" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(
-            budget_values_df, budget_values_bq["full_table_name"], budget_values_bq["table_schema"], "WRITE_TRUNCATE"
+            budget_values_df,
+            budget_values_bq["full_table_name"],
+            budget_values_bq["table_schema"],
+            "WRITE_TRUNCATE",
         )
 
     def __budget_schema(self):
@@ -105,7 +108,7 @@ class BudgetValues:
                 "category": "Income",
                 "subcategory": "Wages",
                 "detail_category": None,
-                "budget_amount": 6500.0,
+                "budget_amount": 0.0,
             },
             {
                 "category_raw": "INCOME",
@@ -652,7 +655,7 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Fitness",
                 "detail_category": "Gyms",
-                "budget_amount": 0.0,
+                "budget_amount": -10.0,
             },
             {
                 "category_raw": "PERSONAL_CARE",
@@ -750,6 +753,14 @@ class BudgetValues:
                 "subcategory": "Shopping",
                 "detail_category": "Other",
                 "budget_amount": 0.0,
+            },
+            {
+                "category_raw": "GENERAL_SERVICES",
+                "subcategory_raw": "GENERAL_SERVICES_TECH",
+                "category": "Expenses",
+                "subcategory": "Tech",
+                "detail_category": None,
+                "budget_amount": -4.0,
             },
             # GOVERNMENT_AND_NON_PROFIT
             {
@@ -912,7 +923,7 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Utilities",
                 "detail_category": "Telephone",
-                "budget_amount": 0.0,
+                "budget_amount": -8.7,
             },
             {
                 "category_raw": "RENT_AND_UTILITIES",
