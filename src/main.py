@@ -24,7 +24,7 @@ CRYPTO_SECRETS = secrets["CRYPTO_SECRETS"]
 
 # CONSTANTS: general
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
-OFFSET = 0
+OFFSET = -1
 
 # CONSTANTS: plaid transactions
 BACKFILL = False
@@ -117,17 +117,13 @@ def run_plaid_transactions(event, context):
     )
 
     # only upload transactions_df to BQ if there is at least one non-null df
-    plaid_transactions.upload_transactions_df_list_to_bq(
-        transactions_df_list, OFFSET, WRITE_DISPOSITION
-    )
+    plaid_transactions.upload_transactions_df_list_to_bq(transactions_df_list, OFFSET, WRITE_DISPOSITION)
 
     # only upload removed_df to BQ if there is at least one non-null df
     plaid_transactions.upload_removed_df_list_to_bq(removed_df_list, OFFSET, WRITE_DISPOSITION)
 
     # Copy temp_cursors to plaid_cursors_YYYYMMDD
-    plaid_transactions.copy_temp_cursors_to_cursors_bq_table(
-        OFFSET, write_disposition="WRITE_TRUNCATE"
-    )
+    plaid_transactions.copy_temp_cursors_to_cursors_bq_table(OFFSET, write_disposition="WRITE_TRUNCATE")
 
     print("SUCCESS: Plaid transactions data uploaded to BQ")
 
@@ -144,20 +140,16 @@ def run_plaid_investments(event, context):
 
     # get investments access_tokens
     access_tokens = list(
-        plaid_client.get_items_by_access_token(PLAID_ACCESS_TOKENS, products=["investments"])[
-            "access_token"
-        ].unique()
+        plaid_client.get_items_by_access_token(PLAID_ACCESS_TOKENS, products=["investments"])["access_token"].unique()
     )
 
     # generate investment dfs for investment holdings and investment transactions
-    holdings_df_list, investment_transactions_df_list = (
-        plaid_investments.generate_investments_dfs_list(START_DATE, END_DATE, access_tokens)
+    holdings_df_list, investment_transactions_df_list = plaid_investments.generate_investments_dfs_list(
+        START_DATE, END_DATE, access_tokens
     )
 
     # only upload holdings_df to BQ if there is at least one non-null df
-    plaid_investments.upload_investment_holdings_df_list_to_bq(
-        holdings_df_list, OFFSET, WRITE_DISPOSITION
-    )
+    plaid_investments.upload_investment_holdings_df_list_to_bq(holdings_df_list, OFFSET, WRITE_DISPOSITION)
 
     # only upload investment_transactions_df to BQ if there is at least one non-null df
     plaid_investments.upload_investment_transactions_df_list_to_bq(
@@ -202,9 +194,7 @@ def run_data_table_retention(event, context):
             end_date=RETENTION_DATE,
         )
 
-    bq.delete_list_of_tables(
-        project_id=PROJECT_ID, dataset_id=DATASET_ID, table_ids=table_partitions, confirm=False
-    )
+    bq.delete_list_of_tables(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_ids=table_partitions, confirm=False)
 
 
 def run_delete_latest_tables(event, context):
@@ -216,7 +206,7 @@ def run_delete_latest_tables(event, context):
         "plaid_transactions_YYYYMMDD",
         "temp_plaid_cursors",
         "plaid_investment_holdings_YYYYMMDD",
-        "plaid_investment_transactions_YYYYMMDD",
+        # "plaid_investment_transactions_YYYYMMDD",
     ]
 
     for table in tables:
@@ -230,7 +220,6 @@ def run_delete_latest_tables(event, context):
 
 
 # def main_test(event, context):
-#     run_data_table_retention("hello", "world")
 
 #     run_delete_latest_tables("hello", "world")
 
@@ -253,6 +242,10 @@ def run_delete_latest_tables(event, context):
 #     time.sleep(3)
 
 #     run_personal_finance_queries("hello", "world")
+
+#     time.sleep(3)
+
+#     run_data_table_retention("hello", "world")
 
 
 # if __name__ == "__main__":

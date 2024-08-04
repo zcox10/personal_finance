@@ -55,6 +55,7 @@ WITH
     PARSE_DATE("%Y%m%d", _TABLE_SUFFIX) AS partition_date,
     item_id,
     account_id,
+    security.security_id,
     cost_basis,
     institution_price,
     quantity,
@@ -64,6 +65,10 @@ WITH
     security.type AS security_type,
     security.ticker_symbol,
   FROM `zsc-personal.personal_finance.plaid_investment_holdings_*`
+  QUALIFY ROW_NUMBER() OVER(
+    PARTITION BY security_id, partition_date
+    ORDER BY institution_price_date DESC, institution_value DESC 
+    ) = 1
   )
   , join_investments AS (
   SELECT 
@@ -84,7 +89,7 @@ WITH
     account_id,
     transaction_id,
     transaction_date,
-    FORMAT_DATE("%Y-%m", DATE_TRUNC(transaction_date, MONTH)) AS transaction_month,
+    DATE_TRUNC(transaction_date, MONTH) AS transaction_month,
     IF(amount > 0, "DEBIT", "CREDIT") AS transaction_type,
     amount * -1 AS actual_amount,
     currency_code,
@@ -242,7 +247,7 @@ WITH
   )
   , budget_values AS (
   SELECT 
-    FORMAT_DATE("%Y-%m", PARSE_DATE("%Y%m", _TABLE_SUFFIX)) AS transaction_month,
+    DATE_TRUNC(PARSE_DATE("%Y%m", _TABLE_SUFFIX), MONTH) AS transaction_month,
     DATE(FORMAT_DATE("%Y-%m-%d", PARSE_DATE("%Y%m", _TABLE_SUFFIX))) AS transaction_date,
     *
   FROM `zsc-personal.budget_values.budget_values_*`
@@ -397,7 +402,7 @@ WITH
     account_subname,
     CAST(NULL AS STRING) AS transaction_id,
     transaction_date,
-    FORMAT_DATE("%Y-%m", DATE_TRUNC(transaction_date, MONTH)) AS transaction_month,
+    DATE_TRUNC(transaction_date, MONTH) AS transaction_month,
     CAST(NULL AS STRING) AS transaction_type,
     CAST(NULL AS FLOAT64) AS budget_amount,
     CAST(NULL AS INT64) AS transactions_count,
@@ -434,9 +439,9 @@ WITH
     account_id,
     account_name,
     account_subname,
-    CAST(NULL AS STRING) AS transaction_id,
-    institution_price_date AS transaction_date,
-    FORMAT_DATE("%Y-%m", DATE_TRUNC(institution_price_date, MONTH)) AS transaction_month,
+    security_id AS transaction_id,
+    partition_date AS transaction_date,
+    DATE_TRUNC(partition_date, MONTH) AS transaction_month,
     CAST(NULL AS STRING) AS transaction_type,
     CAST(NULL AS FLOAT64) AS budget_amount,
     CAST(NULL AS INT64) AS transactions_count,
