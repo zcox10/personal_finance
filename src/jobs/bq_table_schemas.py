@@ -1159,7 +1159,7 @@ class BqTableSchemas:
             },
             {
                 "name": "transaction_month",
-                "type": "STRING",
+                "type": "DATE",
                 "mode": "NULLABLE",
                 "description": "",
             },
