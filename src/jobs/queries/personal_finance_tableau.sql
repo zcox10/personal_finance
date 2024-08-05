@@ -309,9 +309,10 @@ WITH
     )
   LEFT JOIN transactions_agg
   USING (transaction_month, category, subcategory, detail_category)
-  WHERE 
-    -- only include categories that have budget or actual spending
-    (budget_amount + IFNULL(actual_amount, 0)) != 0
+  -- commenting out so figures show up as $0 instead of blank in dashboard
+  -- WHERE 
+  --   -- only include categories that have budget or actual spending
+  --   (budget_amount + IFNULL(actual_amount, 0)) != 0
   )
   , union_data AS (
   SELECT 
