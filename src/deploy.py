@@ -28,18 +28,6 @@ for job in jobs:
     #     confirm=False,
     # )
 
-    # print("CREATE SCHEDULER:", job["trigger_topic"])
-    # gcp.create_scheduler_job(
-    #     project_id=job["project_id"],
-    #     location=job["region"],
-    #     job_name=job["job_name"],
-    #     schedule=job["schedule"],
-    #     timezone=job["timezone"],
-    #     topic_name=job["trigger_topic"],
-    #     payload=job["trigger_topic"],
-    #     confirm=False,
-    # )
-
     print("CREATE FUNCTION:", job["function_name"])
     gcp.create_cloud_function(
         function_name=job["function_name"],
@@ -53,5 +41,17 @@ for job in jobs:
         service_account=job["service_account"],
         show_output=True,
     )
+
+    # print("CREATE SCHEDULER:", job["trigger_topic"])
+    # gcp.create_scheduler_job(
+    #     project_id=job["project_id"],
+    #     location=job["region"],
+    #     job_name=job["job_name"],
+    #     schedule=job["schedule"],
+    #     timezone=job["timezone"],
+    #     topic_name=job["trigger_topic"],
+    #     payload=job["trigger_topic"],
+    #     confirm=False,
+    # )
 
     print()

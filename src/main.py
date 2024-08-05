@@ -24,7 +24,7 @@ CRYPTO_SECRETS = secrets["CRYPTO_SECRETS"]
 
 # CONSTANTS: general
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
-OFFSET = -1
+OFFSET = 0
 
 # CONSTANTS: plaid transactions
 BACKFILL = False
@@ -206,7 +206,8 @@ def run_delete_latest_tables(event, context):
         "plaid_transactions_YYYYMMDD",
         "temp_plaid_cursors",
         "plaid_investment_holdings_YYYYMMDD",
-        # "plaid_investment_transactions_YYYYMMDD",
+        "plaid_investment_transactions_YYYYMMDD",
+        "personal_finance_tableau_YYYYMMDD",
     ]
 
     for table in tables:
