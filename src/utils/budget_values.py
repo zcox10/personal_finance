@@ -8,13 +8,68 @@ class BudgetValues:
         self.__bq = BqUtils(bq_client=bq_client)
         self.__bq_tables = BqTableSchemas()
 
-    def __create_budget_values_df(self):
+    def __backfill_value_exists(self, entry, partition_month):
         """
-        Generates budget_values_df via self.__budget_schema()
+        Checks if a backfill value exists for a given partition month in the provided entry.
+
+        Args:
+            entry (dict): The entry dictionary to check for backfill values.
+            partition_month (str): The partition month to match with backfill dates, in 'YYYY-MM-DD' format.
+
+        Returns:
+            bool: True if the 'backfill' key exists and is a dictionary containing the partition_month,
+                False otherwise.
+        """
+        # "backfill" key exists within the category entry
+        if not ("backfill" in entry):
+            return False
+
+        # "backfill" value is a dict
+        if not isinstance(entry["backfill"], dict):
+            return False
+
+        # the partition_month is present in the "backfill" dict
+        if not (partition_month in entry["backfill"]):
+            return False
+
+        return True
+
+    def __update_budget_schema_with_backfill_values(self, budget_schema, partition_month):
+        """
+        Updates the budget_schema with backfill values if partition_month matches any keys in backfill.
+
+        Args:
+            budget_schema (list of dict): The budget schema data.
+            partition_month (str): The partition month to match with backfill dates in 'YYYY-MM-DD' format.
+
+        Returns:
+            list of dict: Updated budget schema with the budget_amount replaced by backfill values if applicable.
+        """
+        updated_schema = []
+
+        for entry in budget_schema:
+            # Create a copy of the entry to modify
+            updated_entry = entry.copy()
+
+            # Check if backfill key is present
+            if self.__backfill_value_exists(entry, partition_month):
+                updated_entry["budget_amount"] = updated_entry["backfill"][partition_month]
+
+            # Append the updated entry to the new schema
+            updated_schema.append(updated_entry)
+
+        return updated_schema
+
+    def __create_budget_values_df(self, partition_month):
+        """
+        Generates budget_values_df via self.__budget_schema() and self.__update_budget_schema_with_backfill_values()
         """
 
+        budget_schema = self.__budget_schema()
+        updated_schema = self.__update_budget_schema_with_backfill_values(budget_schema, partition_month)
+
         return pd.DataFrame(
-            self.__budget_schema(),
+            updated_schema,
             columns=[
                 "category_raw",
                 "subcategory_raw",
@@ -44,8 +99,10 @@ class BudgetValues:
             offset=offset,
         )
 
+        partition_month = self.__bq.get_date(offset, partition_format="YYYYMM").replace(day=1).strftime("%Y-%m-%d")
+
         # get budget_values_df
-        budget_values_df = self.__create_budget_values_df()
+        budget_values_df = self.__create_budget_values_df(partition_month)
 
         # upload df to budget_values_YYYYMM. "WRITE_TRUNCATE" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(
@@ -108,7 +165,7 @@ class BudgetValues:
                 "category": "Income",
                 "subcategory": "Wages",
                 "detail_category": None,
-                "budget_amount": 0.0,
+                "budget_amount": 7000.0,
             },
             {
                 "category_raw": "INCOME",
@@ -174,7 +231,7 @@ class BudgetValues:
                 "category": "Personal Investments",
                 "subcategory": "Crypto",
                 "detail_category": None,
-                "budget_amount": 0.0,
+                "budget_amount": -666.66,
             },
             {
                 "category_raw": "TRANSFER_OUT",  # Fundrise
@@ -182,7 +239,7 @@ class BudgetValues:
                 "category": "Personal Investments",
                 "subcategory": "Real Estate",
                 "detail_category": None,
-                "budget_amount": 0.0,
+                "budget_amount": -1666.66,
             },
             {
                 "category_raw": "TRANSFER_OUT",  # Schwab
@@ -190,7 +247,7 @@ class BudgetValues:
                 "category": "Personal Investments",
                 "subcategory": "Stocks",
                 "detail_category": None,
-                "budget_amount": 0.0,
+                "budget_amount": -1700.0,
             },
             {
                 "category_raw": "TRANSFER_OUT",  # transfer from Savings to BoA checking
@@ -338,7 +395,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Entertainment",
                 "detail_category": "Gambling",
-                "budget_amount": -450.0,  # all entertainment is lumped here: video games, TV/movies, golf, etc.
+                "budget_amount": 0.0,
             },
             {
                 "category_raw": "ENTERTAINMENT",  # CREDIT from Spotify should be income, other charges from Spotify (DEBIT) are legit
@@ -354,7 +411,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Entertainment",
                 "detail_category": "General",
-                "budget_amount": 0.0,
+                "budget_amount": -300.0,
             },
             {
                 "category_raw": "ENTERTAINMENT",  # mostly Amazon Prime Video rentals
@@ -362,7 +419,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Entertainment",
                 "detail_category": "TV and Movies",
-                "budget_amount": 0.0,
+                "budget_amount": -20.0,
             },
             {
                 "category_raw": "ENTERTAINMENT",  # valid, video games
@@ -387,7 +444,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Food and Drink",
                 "detail_category": "Alcohol",
-                "budget_amount": 0.0,
+                "budget_amount": -100.0,
             },
             {
                 "category_raw": "FOOD_AND_DRINK",
@@ -395,7 +452,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Food and Drink",
                 "detail_category": "Coffee",
-                "budget_amount": 0.0,
+                "budget_amount": -20.0,
             },
             {
                 "category_raw": "FOOD_AND_DRINK",
@@ -403,7 +460,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Food and Drink",
                 "detail_category": "Fast Food",
-                "budget_amount": -200.0,  # accounts for all "Personal Spending - Food and Drink" categories
+                "budget_amount": -50.0,  # accounts for all "Personal Spending - Food and Drink" categories
             },
             {
                 "category_raw": "FOOD_AND_DRINK",
@@ -419,7 +476,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Food and Drink",
                 "detail_category": "Restaurant",
-                "budget_amount": 0.0,
+                "budget_amount": -100.0,
             },
             {
                 "category_raw": "FOOD_AND_DRINK",
@@ -508,7 +565,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Shopping",
                 "detail_category": "Online",
-                "budget_amount": 0.0,
+                "budget_amount": -100.0,
             },
             {
                 "category_raw": "GENERAL_MERCHANDISE",
@@ -532,7 +589,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Shopping",
                 "detail_category": "Superstores",
-                "budget_amount": 0.0,
+                "budget_amount": -200.0,
             },
             {
                 "category_raw": "GENERAL_MERCHANDISE",
@@ -809,7 +866,7 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Car",
                 "detail_category": "Gas",
-                "budget_amount": -150.0,
+                "budget_amount": -100.0,
             },
             {
                 "category_raw": "TRANSPORTATION",
@@ -891,7 +948,7 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Utilities",
                 "detail_category": "Gas and Electricity",
-                "budget_amount": -90.0,
+                "budget_amount": -80.0,
             },
             {
                 "category_raw": "RENT_AND_UTILITIES",
@@ -907,7 +964,7 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Rent",
                 "detail_category": None,
-                "budget_amount": -1375.0,
+                "budget_amount": -1400.0,
             },
             {
                 "category_raw": "RENT_AND_UTILITIES",
