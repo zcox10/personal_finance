@@ -165,7 +165,8 @@ class BudgetValues:
                 "category": "Income",
                 "subcategory": "Wages",
                 "detail_category": None,
-                "budget_amount": 7000.0,
+                "budget_amount": 0.0,
+                # "budget_amount": 7000.0,
             },
             {
                 "category_raw": "INCOME",
@@ -198,7 +199,7 @@ class BudgetValues:
                 "category": "Income",
                 "subcategory": "Deposit",
                 "detail_category": "Investment Funds",
-                "budget_amount": 0.0,
+                "budget_amount": 0.0,  # COLUMBIA MONEY WILL GO HERE
             },
             {
                 "category_raw": "TRANSFER_IN",  # not used
@@ -231,7 +232,8 @@ class BudgetValues:
                 "category": "Personal Investments",
                 "subcategory": "Crypto",
                 "detail_category": None,
-                "budget_amount": -666.66,
+                # "budget_amount": -666.66,
+                "budget_amount": 0.0,
             },
             {
                 "category_raw": "TRANSFER_OUT",  # Fundrise
@@ -239,7 +241,8 @@ class BudgetValues:
                 "category": "Personal Investments",
                 "subcategory": "Real Estate",
                 "detail_category": None,
-                "budget_amount": -1666.66,
+                # "budget_amount": -1666.66,
+                "budget_amount": 0.0,
             },
             {
                 "category_raw": "TRANSFER_OUT",  # Schwab
@@ -247,7 +250,8 @@ class BudgetValues:
                 "category": "Personal Investments",
                 "subcategory": "Stocks",
                 "detail_category": None,
-                "budget_amount": -1700.0,
+                # "budget_amount": -1700.0,
+                "budget_amount": 0.0,
             },
             {
                 "category_raw": "TRANSFER_OUT",  # transfer from Savings to BoA checking
@@ -411,7 +415,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Entertainment",
                 "detail_category": "General",
-                "budget_amount": -300.0,
+                "budget_amount": -100.0,
             },
             {
                 "category_raw": "ENTERTAINMENT",  # mostly Amazon Prime Video rentals
@@ -444,7 +448,8 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Food and Drink",
                 "detail_category": "Alcohol",
-                "budget_amount": -100.0,
+                # "budget_amount": -100.0,
+                "budget_amount": 0.0,
             },
             {
                 "category_raw": "FOOD_AND_DRINK",
@@ -452,7 +457,8 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Food and Drink",
                 "detail_category": "Coffee",
-                "budget_amount": -20.0,
+                # "budget_amount": -20.0,
+                "budget_amount": 0.0,
             },
             {
                 "category_raw": "FOOD_AND_DRINK",
@@ -460,7 +466,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Food and Drink",
                 "detail_category": "Fast Food",
-                "budget_amount": -50.0,  # accounts for all "Personal Spending - Food and Drink" categories
+                "budget_amount": -50.0,
             },
             {
                 "category_raw": "FOOD_AND_DRINK",
@@ -476,7 +482,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Food and Drink",
                 "detail_category": "Restaurant",
-                "budget_amount": -100.0,
+                "budget_amount": -50.0,
             },
             {
                 "category_raw": "FOOD_AND_DRINK",
@@ -501,7 +507,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Shopping",
                 "detail_category": "Media",
-                "budget_amount": -140.0,  # applies for all "Personal Spending - Shopping" categories
+                "budget_amount": 0.0,
             },
             {
                 "category_raw": "GENERAL_MERCHANDISE",
@@ -866,7 +872,8 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Car",
                 "detail_category": "Gas",
-                "budget_amount": -100.0,
+                # "budget_amount": -100.0,
+                "budget_amount": 0.0,
             },
             {
                 "category_raw": "TRANSPORTATION",
@@ -882,7 +889,7 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Transportation",
                 "detail_category": "Public Transit",
-                "budget_amount": 0.0,
+                "budget_amount": -132.0,
             },
             {
                 "category_raw": "TRANSPORTATION",
@@ -890,7 +897,8 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Transportation",
                 "detail_category": "Taxis",
-                "budget_amount": -50.0,
+                # "budget_amount": -50.0,
+                "budget_amount": 0.0,
             },
             {
                 "category_raw": "TRANSPORTATION",
@@ -956,7 +964,7 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Utilities",
                 "detail_category": "Internet and Cable",
-                "budget_amount": -122.0,
+                "budget_amount": 0.0,
             },
             {
                 "category_raw": "RENT_AND_UTILITIES",
@@ -964,7 +972,8 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Rent",
                 "detail_category": None,
-                "budget_amount": -1400.0,
+                "budget_amount": -1365.0,
+                # "budget_amount": -1400.0,
             },
             {
                 "category_raw": "RENT_AND_UTILITIES",

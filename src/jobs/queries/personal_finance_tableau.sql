@@ -143,6 +143,11 @@ WITH
 
       -- cannabis
       WHEN merchant.merchant_name IN ("Tru Med") THEN "ENTERTAINMENT"
+
+      -- utilities
+      WHEN 
+        (REGEXP_CONTAINS(merchant.name, r"Hamza Bencheikh") AND REGEXP_CONTAINS(LOWER(merchant.name), r"utilities"))
+      THEN "RENT_AND_UTILITIES"
       
       -- end
       ELSE personal_finance_category.primary
@@ -204,6 +209,11 @@ WITH
 
       -- cannabis
       WHEN merchant.merchant_name IN ("Tru Med") THEN "ENTERTAINMENT_OTHER_ENTERTAINMENT"
+
+      -- utilities
+      WHEN 
+        (REGEXP_CONTAINS(merchant.name, r"Hamza Bencheikh") AND REGEXP_CONTAINS(LOWER(merchant.name), r"utilities"))
+      THEN "RENT_AND_UTILITIES_GAS_AND_ELECTRICITY"
 
       -- end
       ELSE personal_finance_category.detailed
@@ -317,6 +327,26 @@ WITH
     -- commenting out so figures show up as $0 instead of blank in dashboard
     -- AND (budget_amount + IFNULL(actual_amount, 0)) != 0
   )
+  , create_balance_category AS (
+  SELECT 
+    transaction_date,
+    transaction_month,
+    "Balance" AS category,
+    CAST(NULL AS STRING) AS subcategory,
+    CAST(NULL AS STRING) AS detail_category,
+    SUM(budget_amount) AS budget_amount,
+    SUM(actual_amount) AS actual_amount,
+    0 AS transactions_count
+  FROM join_transactions_agg
+  GROUP BY 1,2
+  )
+  , final_transactions_agg AS (
+  SELECT *
+  FROM join_transactions_agg
+  UNION ALL
+  SELECT *
+  FROM create_balance_category
+  )
   , union_data AS (
   SELECT 
     CURRENT_DATE() AS partition_date,
@@ -353,7 +383,7 @@ WITH
     CAST(NULL AS FLOAT64) cost_basis, 
     CAST(NULL AS STRING) security_type,
     CAST(NULL AS STRING) ticker_symbol
-  FROM join_transactions_agg
+  FROM final_transactions_agg
 
   UNION ALL
 
