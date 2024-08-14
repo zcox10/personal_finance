@@ -23,7 +23,9 @@ WITH
     institution_name,
     
     CASE 
+      WHEN institution_name = "Charles Schwab" THEN "Schwab"
       WHEN institution_name = "E*TRADE Financial" THEN "E-Trade"
+      WHEN institution_name = "Bank of America" THEN "BoA"
       WHEN account_subtype = "cryptocurrency" THEN "Crypto"
       ELSE institution_name
     END AS account_name,
@@ -34,6 +36,8 @@ WITH
       WHEN account_subtype = "cryptocurrency" THEN account_name
       ELSE institution_name
     END AS account_subname,
+
+    TITLE(account_type) AS account_type,
 
     PARSE_DATE("%Y%m%d", _TABLE_SUFFIX) AS transaction_date,
     IF(account_type = "credit", balance.current * -1, balance.current) AS actual_amount,
@@ -47,6 +51,7 @@ WITH
     institution_name,
     account_name,
     account_subname,
+    account_type
   FROM get_accounts
   QUALIFY ROW_NUMBER() OVER(PARTITION BY item_id, account_id ORDER BY transaction_date DESC) = 1
   )
@@ -57,13 +62,14 @@ WITH
     account_id,
     security.security_id,
     cost_basis,
-    institution_price,
-    quantity,
-    institution_price_date,
     institution_value,
+    quantity,
+    institution_price,
+    institution_price_date,
     currency_code,
     security.type AS security_type,
     security.ticker_symbol,
+    security.name AS security_name,
   FROM `zsc-personal.personal_finance.plaid_investment_holdings_*`
   QUALIFY ROW_NUMBER() OVER(
     PARTITION BY security_id, partition_date
@@ -355,6 +361,7 @@ WITH
     CAST(NULL AS STRING) AS account_id,
     CAST(NULL AS STRING) AS account_name,
     CAST(NULL AS STRING) AS account_subname,
+    CAST(NULL AS STRING) AS account_type,
     CAST(NULL AS STRING) AS transaction_id,
     transaction_date,
     transaction_month,
@@ -370,8 +377,18 @@ WITH
     category,
     subcategory,
     detail_category,
-    CONCAT(category, " - ", subcategory) AS final_category,
-    CONCAT(category, " - ", subcategory, IF(detail_category IS NULL, "", CONCAT(" - ", detail_category))) AS full_category,
+    
+    CONCAT(
+      category, 
+      IF(subcategory IS NULL, "", CONCAT(" - ", subcategory))
+    ) AS final_category,
+
+    CONCAT(
+      category,
+      IF(subcategory IS NULL, "", CONCAT(" - ", subcategory)), 
+      IF(detail_category IS NULL, "", CONCAT(" - ", detail_category))
+    ) AS full_category,
+
     CAST(NULL AS STRING) AS payment_channel,
     CAST(NULL AS STRING) AS merchant_name,
     CAST(NULL AS STRING) AS merchant_name_raw,
@@ -381,8 +398,9 @@ WITH
     CAST(NULL AS FLOAT64) AS institution_price,
     CAST(NULL AS FLOAT64) AS quantity,
     CAST(NULL AS FLOAT64) cost_basis, 
-    CAST(NULL AS STRING) security_type,
-    CAST(NULL AS STRING) ticker_symbol
+    CAST(NULL AS STRING) AS security_type,
+    CAST(NULL AS STRING) AS security_name,
+    CAST(NULL AS STRING) AS ticker_symbol,
   FROM final_transactions_agg
 
   UNION ALL
@@ -394,6 +412,7 @@ WITH
     account_id,
     account_name,
     account_subname,
+    account_type,
     transaction_id,
     transaction_date,
     transaction_month,
@@ -410,8 +429,18 @@ WITH
     category,
     subcategory,
     detail_category,
-    CONCAT(category, " - ", subcategory) AS final_category,
-    CONCAT(category, " - ", subcategory, IF(detail_category IS NULL, "", CONCAT(" - ", detail_category))) AS full_category,
+    
+    CONCAT(
+      category, 
+      IF(subcategory IS NULL, "", CONCAT(" - ", subcategory))
+    ) AS final_category,
+
+    CONCAT(
+      category,
+      IF(subcategory IS NULL, "", CONCAT(" - ", subcategory)), 
+      IF(detail_category IS NULL, "", CONCAT(" - ", detail_category))
+    ) AS full_category,
+    
     payment_channel,
     merchant_name,
     merchant_name_raw,
@@ -421,8 +450,9 @@ WITH
     CAST(NULL AS FLOAT64) AS institution_price,
     CAST(NULL AS FLOAT64) AS quantity,
     CAST(NULL AS FLOAT64) cost_basis, 
-    CAST(NULL AS STRING) security_type,
-    CAST(NULL AS STRING) ticker_symbol
+    CAST(NULL AS STRING) AS security_type,
+    CAST(NULL AS STRING) AS security_name,
+    CAST(NULL AS STRING) AS ticker_symbol,
   FROM add_transaction_categories
 
   UNION ALL
@@ -434,6 +464,7 @@ WITH
     account_id,
     account_name,
     account_subname,
+    account_type,
     CAST(NULL AS STRING) AS transaction_id,
     transaction_date,
     DATE_TRUNC(transaction_date, MONTH) AS transaction_month,
@@ -460,8 +491,9 @@ WITH
     CAST(NULL AS FLOAT64) AS institution_price,
     CAST(NULL AS FLOAT64) AS quantity,
     CAST(NULL AS FLOAT64) cost_basis, 
-    CAST(NULL AS STRING) security_type,
-    CAST(NULL AS STRING) ticker_symbol
+    CAST(NULL AS STRING) AS security_type,
+    CAST(NULL AS STRING) AS security_name,
+    CAST(NULL AS STRING) AS ticker_symbol,
   FROM get_accounts
 
   UNION ALL
@@ -473,6 +505,7 @@ WITH
     account_id,
     account_name,
     account_subname,
+    account_type,
     security_id AS transaction_id,
     partition_date AS transaction_date,
     DATE_TRUNC(partition_date, MONTH) AS transaction_month,
@@ -498,9 +531,10 @@ WITH
     CAST(NULL AS STRING) AS merchant_type,
     institution_price,
     quantity,
-    cost_basis, 
+    cost_basis,
     security_type,
-    ticker_symbol
+    security_name,
+    ticker_symbol,
   FROM join_investments
   )
 SELECT *

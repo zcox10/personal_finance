@@ -1146,6 +1146,12 @@ class BqTableSchemas:
                 "description": "",
             },
             {
+                "name": "account_type",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
                 "name": "transaction_id",
                 "type": "STRING",
                 "mode": "NULLABLE",
@@ -1303,6 +1309,12 @@ class BqTableSchemas:
             },
             {
                 "name": "security_type",
+                "type": "STRING",
+                "mode": "NULLABLE",
+                "description": "",
+            },
+            {
+                "name": "security_name",
                 "type": "STRING",
                 "mode": "NULLABLE",
                 "description": "",
