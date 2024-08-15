@@ -1,6 +1,6 @@
 from google.cloud import bigquery
-from utils.gcp_utils import GcpUtils
-from jobs.cloud_schemas import CloudSchemas
+from utils.google_cloud_utils import GcpUtils
+from schemas.cloud_schemas import CloudSchemas
 
 bq_client = bigquery.Client()
 gcp = GcpUtils(bq_client=bq_client)
@@ -9,12 +9,12 @@ cs = CloudSchemas()
 
 # jobs to run
 jobs = [
-    cs.financial_accounts(),
-    cs.budget_values(),
-    cs.plaid_transactions(),
-    cs.plaid_investments(),
-    cs.personal_finance_queries(),
-    cs.data_table_retention(),
+    cs.financial_accounts,
+    cs.budget_values,
+    cs.plaid_transactions,
+    cs.plaid_investments,
+    cs.personal_finance_queries,
+    cs.data_table_retention,
 ]
 
 for job in jobs:

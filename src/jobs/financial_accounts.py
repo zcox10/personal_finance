@@ -4,7 +4,7 @@ import sys
 from google.api_core.exceptions import NotFound
 from utils.bq_utils import BqUtils
 from utils.crypto_utils import CryptoUtils
-from jobs.bq_table_schemas import BqTableSchemas
+from schemas.bq_table_schemas import BqTableSchemas
 
 
 class FinancialAccounts:
@@ -311,7 +311,7 @@ class FinancialAccounts:
 
         # generate schema for new financial_accounts_YYYYMMDD table
         financial_accounts_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.financial_accounts_YYYYMMDD(),
+            schema=self.__bq_tables.financial_accounts_YYYYMMDD,
             offset=offset,
         )
 
@@ -322,36 +322,10 @@ class FinancialAccounts:
         if accounts_df is not None:
             self.__bq.load_df_to_bq(
                 accounts_df,
-                financial_accounts_bq["full_table_name"],
-                financial_accounts_bq["table_schema"],
+                financial_accounts_bq.full_table_name,
+                financial_accounts_bq.table_schema,
                 write_disposition,
             )
-            print(f"SUCCESS: all access tokens added to `{financial_accounts_bq['full_table_name']}`\n")
+            print(f"SUCCESS: all access tokens added to `{financial_accounts_bq.full_table_name}`\n")
         else:
             print("No accounts present in accounts_df")
-
-    def create_empty_accounts_bq_table(self, offset, write_disposition):
-        """
-        Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
-
-        Args:
-            offset (int): The offset to be applied to a given partition date
-            write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
-
-        Returns:
-            None: This function does not return anything. Prints table details or a success message upon completion.
-        """
-        # get BQ schema information
-        financial_accounts_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.financial_accounts_YYYYMMDD(), offset=offset
-        )
-
-        # create empty table to store account data
-        self.__bq.create_empty_bq_table(
-            project_id=financial_accounts_bq["project_id"],
-            dataset_id=financial_accounts_bq["dataset_id"],
-            table_id=financial_accounts_bq["table_id"],
-            table_description=financial_accounts_bq["table_description"],
-            table_schema=financial_accounts_bq["table_schema"],
-            write_disposition=write_disposition,
-        )

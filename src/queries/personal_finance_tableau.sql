@@ -68,7 +68,7 @@ WITH
     institution_price_date,
     currency_code,
     security.type AS security_type,
-    security.ticker_symbol,
+    IFNULL(security.ticker_symbol, security.name) AS ticker_symbol,
     security.name AS security_name,
   FROM `zsc-personal.personal_finance.plaid_investment_holdings_*`
   QUALIFY ROW_NUMBER() OVER(
@@ -245,15 +245,23 @@ WITH
 
     counterparties[SAFE_OFFSET(0)].type AS merchant_type,
     acct.* EXCEPT(item_id, account_id, institution_name)
-  FROM `zsc-personal.personal_finance.plaid_transactions_*`
+  FROM `zsc-personal.personal_finance.plaid_transactions_*` t
   LEFT JOIN removed_transactions r
   USING (item_id, account_id, transaction_id)
   LEFT JOIN accounts_distinct acct
   USING (item_id, account_id)
   WHERE
+    -- only include partitions >= previous year i.e. 2024-07-23 would return all partitions >= 2023-01-01
+    PARSE_DATE('%Y%m%d', t._TABLE_SUFFIX) >= (
+      DATE_TRUNC(DATE_ADD(PARSE_DATE('%Y%m%d', (
+        SELECT REGEXP_REPLACE(MAX(table_id),'personal_finance_tableau_', '')
+        FROM `zsc-personal.personal_finance.__TABLES__` 
+        WHERE table_id LIKE 'personal_finance_tableau_%'
+        )), INTERVAL -1 YEAR), YEAR))
+
     -- if removed transaction is present and removed date >= transaction_date, remove the transaciton
     -- else, even if removed transaction is present and date_removed < transaction_date, keep transaction
-    IF(r.transaction_id IS NOT NULL, r.date_removed < transaction_date, TRUE)
+    AND IF(r.transaction_id IS NOT NULL, r.date_removed < transaction_date, TRUE)
 
     -- remove pending transactions
     AND NOT is_pending
@@ -304,6 +312,17 @@ WITH
   FROM add_transaction_categories
   GROUP BY 1,2,3,4
   )
+  , budget_values_agg AS (
+  SELECT 
+    transaction_month,
+    transaction_date,
+    category,
+    subcategory,
+    IFNULL(detail_category, "null") AS detail_category, -- detail_category can be null, and need to join on this field
+    SUM(budget_amount) AS budget_amount
+  FROM budget_values
+  GROUP BY 1,2,3,4,5
+  )
   , join_transactions_agg AS (
   SELECT 
     transaction_date,
@@ -317,12 +336,7 @@ WITH
     budget_amount,
     IFNULL(actual_amount, 0) AS actual_amount,
     IFNULL(transactions_count, 0) AS transactions_count
-  FROM ( -- detail_category can be null, and need to join on this field
-    SELECT 
-      * EXCEPT(detail_category),
-      IFNULL(detail_category, "null") AS detail_category
-    FROM budget_values
-    )
+  FROM budget_values_agg
   LEFT JOIN transactions_agg
   USING (transaction_month, category, subcategory, detail_category)
   

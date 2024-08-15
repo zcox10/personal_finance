@@ -93,6 +93,9 @@ class SecretsUtils:
             if secret[: len("PLAID")] == "PLAID":
                 secrets_dict[secret] = secret_key
 
+        # add sendgrid api key
+        secrets_dict["SENDGRID_KEY"] = self.get_secrets("SENDGRID_KEY", project_id, version_id)
+
         # Crypto secrets to gather
         crypto_secrets = {
             "ETH": {

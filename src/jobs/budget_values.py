@@ -1,6 +1,6 @@
 import pandas as pd
 from utils.bq_utils import BqUtils
-from jobs.bq_table_schemas import BqTableSchemas
+from schemas.bq_table_schemas import BqTableSchemas
 
 
 class BudgetValues:
@@ -95,7 +95,7 @@ class BudgetValues:
 
         # get BQ schema information
         budget_values_bq = self.__bq.update_table_schema_partition(
-            self.__bq_tables.budget_values_YYYYMM(),
+            self.__bq_tables.budget_values_YYYYMM,
             offset=offset,
         )
 
@@ -107,8 +107,8 @@ class BudgetValues:
         # upload df to budget_values_YYYYMM. "WRITE_TRUNCATE" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(
             budget_values_df,
-            budget_values_bq["full_table_name"],
-            budget_values_bq["table_schema"],
+            budget_values_bq.full_table_name,
+            budget_values_bq.table_schema,
             "WRITE_TRUNCATE",
         )
 

@@ -1,6 +1,6 @@
 import time
 import pandas as pd
-from jobs.bq_table_schemas import BqTableSchemas
+from schemas.bq_table_schemas import BqTableSchemas
 from utils.bq_utils import BqUtils
 
 
@@ -42,13 +42,13 @@ class PlaidTransactions:
 
         # define the table where cursors are stored
         plaid_cursors_bq = self.__bq.update_table_schema_latest_partition(
-            schema=self.__bq_tables.plaid_cursors_YYYYMMDD()
+            schema=self.__bq_tables.plaid_cursors_YYYYMMDD
         )
 
         if not self.__bq.does_bq_table_exist(
-            plaid_cursors_bq["project_id"], plaid_cursors_bq["dataset_id"], plaid_cursors_bq["table_id"]
+            plaid_cursors_bq.project_id, plaid_cursors_bq.dataset_id, plaid_cursors_bq.table_id
         ):
-            print(f"`{plaid_cursors_bq['full_table_name']}` does not exist!")
+            print(f"`{plaid_cursors_bq.full_table_name}` does not exist!")
             return None
 
         # query to grab each access_token / item_id utilizing "transactions" product and their associated latest cursor
@@ -57,7 +57,7 @@ class PlaidTransactions:
           CAST(NULL AS STRING) AS access_token,
           item_id,
           next_cursor
-        FROM `{plaid_cursors_bq['full_table_name']}`
+        FROM `{plaid_cursors_bq.full_table_name}`
         """
 
         cursors_df = self.__bq.query(cursors_query)
@@ -81,21 +81,6 @@ class PlaidTransactions:
             data into the created BigQuery table.
         """
 
-        # get BQ schema information, create new partition
-        plaid_cursors_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_cursors_YYYYMMDD(), offset=offset
-        )
-
-        # # create empty table to store account data
-        # self.__bq.create_empty_bq_table(
-        #     project_id=plaid_cursors_bq["project_id"],
-        #     dataset_id=plaid_cursors_bq["dataset_id"],
-        #     table_id=plaid_cursors_bq["table_id"],
-        #     table_description=plaid_cursors_bq["table_description"],
-        #     table_schema=plaid_cursors_bq["table_schema"],
-        #     write_disposition=write_disposition,
-        # )
-
         # get plaid accounts. Stores access_token, item_id, and next cursor in df df
         accounts_df = self.__plaid_client.get_items_by_access_token(access_tokens, products=["transactions"])
         accounts_df = accounts_df[["item_id"]]
@@ -103,9 +88,14 @@ class PlaidTransactions:
         # add empty cursor as next_cursor (fresh start)
         accounts_df["next_cursor"] = ""
 
+        # get BQ schema information, create new partition
+        plaid_cursors_bq = self.__bq.update_table_schema_partition(
+            schema=self.__bq_tables.plaid_cursors_YYYYMMDD, offset=offset
+        )
+
         # table should already be empty, so use WRITE_TRUNCATE
         return self.__bq.load_df_to_bq(
-            accounts_df, plaid_cursors_bq["full_table_name"], plaid_cursors_bq["table_schema"], "WRITE_TRUNCATE"
+            accounts_df, plaid_cursors_bq.full_table_name, plaid_cursors_bq.table_schema, "WRITE_TRUNCATE"
         )
 
     def add_cursor_to_bq(self, item_id, next_cursor, full_table_name, table_schema):
@@ -138,37 +128,36 @@ class PlaidTransactions:
         Returns:
             None
         """
-        temp_cursors_bq = self.__bq_tables.temp_plaid_cursors()
+        temp_cursors_bq = self.__bq_tables.temp_plaid_cursors
 
-        # create new temp_cursors BQ table
         self.__bq.create_empty_bq_table(
-            project_id=temp_cursors_bq["project_id"],
-            dataset_id=temp_cursors_bq["dataset_id"],
-            table_id=temp_cursors_bq["table_id"],
-            table_description=temp_cursors_bq["table_description"],
-            table_schema=temp_cursors_bq["table_schema"],
+            project_id=temp_cursors_bq.project_id,
+            dataset_id=temp_cursors_bq.dataset_id,
+            table_id=temp_cursors_bq.table_id,
+            table_description=temp_cursors_bq.table_description,
+            table_schema=temp_cursors_bq.table_schema,
             write_disposition=write_disposition,
         )
 
     def copy_temp_cursors_to_cursors_bq_table(self, offset, write_disposition):
 
         # get temp_cursors_bq table
-        temp_cursors_bq = self.__bq_tables.temp_plaid_cursors()
+        temp_cursors_bq = self.__bq_tables.temp_plaid_cursors
 
         # get plaid_cursors_YYYYMMDD latest partition
         plaid_cursors_bq_latest = self.__bq.update_table_schema_latest_partition(
-            schema=self.__bq_tables.plaid_cursors_YYYYMMDD()
+            schema=self.__bq_tables.plaid_cursors_YYYYMMDD
         )
 
         query = f"""
         WITH
             temp_plaid_cursors AS (
             SELECT *
-            FROM `{temp_cursors_bq["full_table_name"]}`
+            FROM `{temp_cursors_bq.full_table_name}`
             )
             , latest_cursors AS (
             SELECT p.*
-            FROM `{plaid_cursors_bq_latest["full_table_name"]}` p
+            FROM `{plaid_cursors_bq_latest.full_table_name}` p
             LEFT JOIN temp_plaid_cursors t
             USING (item_id)
             WHERE t.item_id IS NULL
@@ -182,11 +171,11 @@ class PlaidTransactions:
 
         # get BQ schema information
         plaid_cursors_bq_new = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_cursors_YYYYMMDD(), offset=offset
+            schema=self.__bq_tables.plaid_cursors_YYYYMMDD, offset=offset
         )
 
         self.__bq.create_query_bq_table(
-            query=query, destination_table=plaid_cursors_bq_new["full_table_name"], write_disposition=write_disposition
+            query=query, destination_table=plaid_cursors_bq_new.full_table_name, write_disposition=write_disposition
         )
 
     def __create_removed_df(self, item_id, removed_transactions, removed_accounts, partition_date):
@@ -459,59 +448,6 @@ class PlaidTransactions:
 
         return transactions_df
 
-    def create_empty_transactions_bq_table(self, offset, write_disposition):
-        """
-        Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
-
-        Args:
-            offset (int): The offset to be applied to a given partition date
-            write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
-
-        Returns:
-            None: This function does not return anything. Prints table details or a success message upon completion.
-        """
-        # get BQ schema information
-        plaid_transactions_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_transactions_YYYYMMDD(), offset=offset
-        )
-
-        # create empty table to store account data
-        self.__bq.create_empty_bq_table(
-            project_id=plaid_transactions_bq["project_id"],
-            dataset_id=plaid_transactions_bq["dataset_id"],
-            table_id=plaid_transactions_bq["table_id"],
-            table_description=plaid_transactions_bq["table_description"],
-            table_schema=plaid_transactions_bq["table_schema"],
-            write_disposition=write_disposition,
-        )
-
-    def create_empty_removed_bq_table(self, offset, write_disposition):
-        """
-        Creates an empty plaid_removed_transactions_YYYYMMDD table in BQ for a specific partition date.
-
-        Args:
-            offset (int): The offset to be applied to a given partition date
-            write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
-
-        Returns:
-            None: This function does not return anything. Prints table details or a success message upon completion.
-        """
-
-        # get BQ schema information
-        plaid_removed_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_removed_transactions_YYYYMMDD(), offset=offset
-        )
-
-        # create empty table to store account data
-        self.__bq.create_empty_bq_table(
-            project_id=plaid_removed_bq["project_id"],
-            dataset_id=plaid_removed_bq["dataset_id"],
-            table_id=plaid_removed_bq["table_id"],
-            table_description=plaid_removed_bq["table_description"],
-            table_schema=plaid_removed_bq["table_schema"],
-            write_disposition=write_disposition,
-        )
-
     def upload_transactions_df_to_bq(self, transactions_df, offset):
         """
         Upload the transactions_df to a pre-existing plaid_transactions_YYYYMMDD BQ table
@@ -527,19 +463,19 @@ class PlaidTransactions:
 
         # get BQ schema information
         plaid_transactions_bq = self.__bq.update_table_schema_partition(
-            self.__bq_tables.plaid_transactions_YYYYMMDD(),
+            self.__bq_tables.plaid_transactions_YYYYMMDD,
             offset=offset,
         )
 
         # upload df to plaid_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(
             transactions_df,
-            plaid_transactions_bq["full_table_name"],
-            plaid_transactions_bq["table_schema"],
+            plaid_transactions_bq.full_table_name,
+            plaid_transactions_bq.table_schema,
             "WRITE_APPEND",
         )
 
-    def upload_transactions_df_list_to_bq(self, transactions_df_list, offset, write_disposition):
+    def upload_transactions_df_list_to_bq(self, transactions_df_list, offset):
         """
         Upload a list of transactions DataFrames to BigQuery.
 
@@ -555,11 +491,6 @@ class PlaidTransactions:
         # only upload transactions_df to BQ if there is at least one non-null df
         if len(transactions_df_list) > 0:
             concat_transactions_df = pd.concat(transactions_df_list)
-            # self.create_empty_transactions_bq_table(offset, write_disposition)
-
-            # print("SLEEP 5 SECONDS TO WAIT FOR plaid_transactions_YYYYMMDD creation\n")
-            # time.sleep(5)
-
             self.upload_transactions_df_to_bq(concat_transactions_df, offset)
 
         else:
@@ -580,13 +511,13 @@ class PlaidTransactions:
 
         # get BQ schema information
         plaid_removed_bq = self.__bq.update_table_schema_partition(
-            self.__bq_tables.plaid_removed_transactions_YYYYMMDD(),
+            self.__bq_tables.plaid_removed_transactions_YYYYMMDD,
             offset=offset,
         )
 
         # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(
-            removed_df, plaid_removed_bq["full_table_name"], plaid_removed_bq["table_schema"], "WRITE_APPEND"
+            removed_df, plaid_removed_bq.full_table_name, plaid_removed_bq.table_schema, "WRITE_APPEND"
         )
 
     def upload_removed_df_list_to_bq(self, removed_df_list, offset, write_disposition):
@@ -604,11 +535,6 @@ class PlaidTransactions:
         # only upload removed_df to BQ if there is at least one non-null df
         if len(removed_df_list) > 0:
             concat_removed_df = pd.concat(removed_df_list)
-            # self.create_empty_removed_bq_table(offset, write_disposition)
-
-            # print("SLEEP 5 SECONDS TO WAIT FOR plaid_removed_transactions_YYYYMMDD creation\n")
-            # time.sleep(5)
-
             self.upload_removed_df_to_bq(concat_removed_df, offset)
 
         else:
@@ -657,14 +583,14 @@ class PlaidTransactions:
         transactions_df = pd.concat(transactions_df_list)
 
         # add next cursor back to next_cursor table
-        temp_plaid_cursors_bq = self.__bq_tables.temp_plaid_cursors()
+        temp_plaid_cursors_bq = self.__bq_tables.temp_plaid_cursors
 
         # add cursor to temp_cursors table
         self.add_cursor_to_bq(
             item_id=item_id,
             next_cursor=latest_cursor,
-            full_table_name=temp_plaid_cursors_bq["full_table_name"],
-            table_schema=temp_plaid_cursors_bq["table_schema"],
+            full_table_name=temp_plaid_cursors_bq.full_table_name,
+            table_schema=temp_plaid_cursors_bq.table_schema,
         )
 
         print(f"SUCCESS: retrieved transactions for item_id: {item_id}")

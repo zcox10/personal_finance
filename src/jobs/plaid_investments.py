@@ -1,6 +1,6 @@
 import pandas as pd
 import time
-from jobs.bq_table_schemas import BqTableSchemas
+from schemas.bq_table_schemas import BqTableSchemas
 from utils.bq_utils import BqUtils
 
 
@@ -298,58 +298,6 @@ class PlaidInvestments:
             "type": None,
         }
 
-    def create_empty_investment_transactions_bq_table(self, offset, write_disposition):
-        """
-        Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
-
-        Args:
-            offset (int): The offset to be applied to a given partition date
-            write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
-
-        Returns:
-            None: This function does not return anything. Prints table details or a success message upon completion.
-        """
-        # get BQ schema information
-        plaid_investment_transactions_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_investment_transactions_YYYYMMDD(), offset=offset
-        )
-
-        # create empty table to store account data
-        self.__bq.create_empty_bq_table(
-            project_id=plaid_investment_transactions_bq["project_id"],
-            dataset_id=plaid_investment_transactions_bq["dataset_id"],
-            table_id=plaid_investment_transactions_bq["table_id"],
-            table_description=plaid_investment_transactions_bq["table_description"],
-            table_schema=plaid_investment_transactions_bq["table_schema"],
-            write_disposition=write_disposition,
-        )
-
-    def create_empty_investment_holdings_bq_table(self, offset, write_disposition):
-        """
-        Creates an empty plaid_transactions_YYYYMMDD table in BQ for a specific partition date.
-
-        Args:
-            offset (int): The offset to be applied to a given partition date
-            write_disposition (str): Options include WRITE_TRUNCTE, WRITE_APPEND, and WRITE_EMPTY
-
-        Returns:
-            None: This function does not return anything. Prints table details or a success message upon completion.
-        """
-        # get BQ schema information
-        plaid_investment_holdings_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.plaid_investment_holdings_YYYYMMDD(), offset=offset
-        )
-
-        # create empty table to store account data
-        self.__bq.create_empty_bq_table(
-            project_id=plaid_investment_holdings_bq["project_id"],
-            dataset_id=plaid_investment_holdings_bq["dataset_id"],
-            table_id=plaid_investment_holdings_bq["table_id"],
-            table_description=plaid_investment_holdings_bq["table_description"],
-            table_schema=plaid_investment_holdings_bq["table_schema"],
-            write_disposition=write_disposition,
-        )
-
     def upload_investment_transactions_df_to_bq(self, investment_transactions_df, offset):
         """
         Upload the transactions_df to a pre-existing plaid_transactions_YYYYMMDD BQ table
@@ -365,15 +313,15 @@ class PlaidInvestments:
 
         # get BQ schema information
         plaid_investment_transactions_bq = self.__bq.update_table_schema_partition(
-            self.__bq_tables.plaid_investment_transactions_YYYYMMDD(),
+            self.__bq_tables.plaid_investment_transactions_YYYYMMDD,
             offset=offset,
         )
 
         # upload df to plaid_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(
             investment_transactions_df,
-            plaid_investment_transactions_bq["full_table_name"],
-            plaid_investment_transactions_bq["table_schema"],
+            plaid_investment_transactions_bq.full_table_name,
+            plaid_investment_transactions_bq.table_schema,
             "WRITE_APPEND",
         )
 
@@ -395,11 +343,6 @@ class PlaidInvestments:
             print("No investment transactions present\n")
         else:
             concat_investment_transactions_df = pd.concat(investment_transactions_df_list)
-
-            # create empty plaid_investment_transactions_YYYYMMDD to upload transactions to
-            # self.create_empty_investment_transactions_bq_table(offset, write_disposition)
-            # print("SLEEP 5 SECONDS TO WAIT FOR plaid_investment_transactions_YYYYMMDD creation\n")
-            # time.sleep(5)
             self.upload_investment_transactions_df_to_bq(concat_investment_transactions_df, offset)
 
     def upload_investment_holdings_df_to_bq(self, holdings_df, offset):
@@ -417,15 +360,15 @@ class PlaidInvestments:
 
         # get BQ schema information
         plaid_investment_holdings_bq = self.__bq.update_table_schema_partition(
-            self.__bq_tables.plaid_investment_holdings_YYYYMMDD(),
+            self.__bq_tables.plaid_investment_holdings_YYYYMMDD,
             offset=offset,
         )
 
         # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self.__bq.load_df_to_bq(
             holdings_df,
-            plaid_investment_holdings_bq["full_table_name"],
-            plaid_investment_holdings_bq["table_schema"],
+            plaid_investment_holdings_bq.full_table_name,
+            plaid_investment_holdings_bq.table_schema,
             "WRITE_APPEND",
         )
 
@@ -447,12 +390,6 @@ class PlaidInvestments:
             print("No investment holdings present\n")
         else:
             concat_holdings_df = pd.concat(holdings_df_list)
-
-            # # create empty plaid_investment_holdings_YYYYMMDD to upload holdings to
-            # self.create_empty_investment_holdings_bq_table(offset, write_disposition)
-
-            # print("SLEEP 5 SECONDS TO WAIT FOR plaid_investment_holdings_YYYYMMDD creation\n")
-            # time.sleep(5)
 
             # upload holdings df to BQ
             self.upload_investment_holdings_df_to_bq(concat_holdings_df, offset)

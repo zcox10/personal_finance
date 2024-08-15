@@ -9,7 +9,8 @@ class CloudSchemas:
         self.service_account = "zsc-service-account@zsc-personal.iam.gserviceaccount.com"
         self.timezone = "UTC"
 
-    def financial_accounts(self):
+    @property
+    def financial_accounts(self) -> dict:
         return {
             "project_id": self.project_id,
             "function_name": "financial-accounts-workflow",
@@ -26,7 +27,8 @@ class CloudSchemas:
             "schedule": "0 10 * * *",  # 10:00am UTC
         }
 
-    def budget_values(self):
+    @property
+    def budget_values(self) -> dict:
         return {
             "project_id": self.project_id,
             "function_name": "budget-values-workflow",
@@ -43,7 +45,8 @@ class CloudSchemas:
             "schedule": "10 10 * * *",  # 10:10am UTC
         }
 
-    def plaid_transactions(self):
+    @property
+    def plaid_transactions(self) -> dict:
         return {
             "project_id": self.project_id,
             "function_name": "plaid-transactions-workflow",
@@ -60,7 +63,8 @@ class CloudSchemas:
             "schedule": "15 10 * * *",  # 10:15am UTC
         }
 
-    def plaid_investments(self):
+    @property
+    def plaid_investments(self) -> dict:
         return {
             "project_id": self.project_id,
             "function_name": "plaid-investments-workflow",
@@ -77,7 +81,8 @@ class CloudSchemas:
             "schedule": "30 10 * * *",  # 10:30am UTC
         }
 
-    def personal_finance_queries(self):
+    @property
+    def personal_finance_queries(self) -> dict:
         return {
             "project_id": self.project_id,
             "function_name": "personal-finance-queries-workflow",
@@ -94,7 +99,8 @@ class CloudSchemas:
             "schedule": "45 10 * * *",  # 10:45am UTC
         }
 
-    def data_table_retention(self):
+    @property
+    def data_table_retention(self) -> dict:
         return {
             "project_id": self.project_id,
             "function_name": "data-table-retention-workflow",
@@ -111,7 +117,8 @@ class CloudSchemas:
             "schedule": "00 11 * * *",  # 11:00am UTC
         }
 
-    def test_job(self):
+    @property
+    def test_job(self) -> dict:
         return {
             "project_id": self.project_id,
             "function_name": "test-function-workflow",
