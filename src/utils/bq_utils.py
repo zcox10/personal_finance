@@ -353,8 +353,7 @@ class BqUtils:
             schema (dict): The updated table schema for the "table_id" value representing the latest partition
         """
 
-        schema["table_id"] = self.get_latest_table_partition(schema["dataset_id"], schema["table_id"])
-        schema["full_table_name"] = schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
+        schema.table_id = self.get_latest_table_partition(schema.dataset_id, schema.table_id)
         return schema
 
     def update_table_schema_partition(self, schema, offset):
@@ -371,9 +370,7 @@ class BqUtils:
             schema (dict): The updated table schema for the "table_id" value representing the latest partition
         """
         # replace {table_name}_YYYYMMDD with specific partition e.g. {table_name}_20240401
-        new_table_id = self.update_single_table_partition(schema["table_id"], offset)
-        schema["table_id"] = new_table_id
-        schema["full_table_name"] = schema["project_id"] + "." + schema["dataset_id"] + "." + schema["table_id"]
+        schema.table_id = self.update_single_table_partition(schema.table_id, offset)
         return schema
 
     def concat_table_name(self, project_id, dataset_id, table_id):

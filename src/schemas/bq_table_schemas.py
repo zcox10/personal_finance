@@ -1,12 +1,13 @@
-class BqTableSchemas:
-    def __init__(self):
-        pass
+from utils.bq_table_utils import BqTable
 
+
+class BqTableSchemas:
+
+    @property
     def budget_values_YYYYMM(self):
         project_id = "zsc-personal"
         dataset_id = "budget_values"
         table_id = "budget_values_YYYYMM"
-        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores all budget categories and associated values."
         table_schema = [
             {
@@ -47,22 +48,19 @@ class BqTableSchemas:
             },
         ]
 
-        schema = {
-            "project_id": project_id,
-            "dataset_id": dataset_id,
-            "table_id": table_id,
-            "full_table_name": full_table_name,
-            "table_description": table_description,
-            "table_schema": table_schema,
-        }
+        return BqTable(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            table_description=table_description,
+            table_schema=table_schema,
+        )
 
-        return schema
-
+    @property
     def financial_accounts_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "financial_accounts_YYYYMMDD"
-        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores all Plaid account data.  Field descriptions available at https://plaid.com/docs/api/accounts/#accounts-get-response-accounts-persistent-account-id"
         table_schema = [
             {
@@ -194,22 +192,19 @@ class BqTableSchemas:
             },
         ]
 
-        schema = {
-            "project_id": project_id,
-            "dataset_id": dataset_id,
-            "table_id": table_id,
-            "full_table_name": full_table_name,
-            "table_description": table_description,
-            "table_schema": table_schema,
-        }
+        return BqTable(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            table_description=table_description,
+            table_schema=table_schema,
+        )
 
-        return schema
-
+    @property
     def plaid_cursors_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "plaid_cursors_YYYYMMDD"
-        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores Plaid item/access token cursors as of the latest run. Use latest partition to get most recently provided cursor"
         table_schema = [
             {
@@ -226,22 +221,19 @@ class BqTableSchemas:
             },
         ]
 
-        schema = {
-            "project_id": project_id,
-            "dataset_id": dataset_id,
-            "table_id": table_id,
-            "full_table_name": full_table_name,
-            "table_description": table_description,
-            "table_schema": table_schema,
-        }
+        return BqTable(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            table_description=table_description,
+            table_schema=table_schema,
+        )
 
-        return schema
-
+    @property
     def temp_plaid_cursors(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "temp_plaid_cursors"
-        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores temporary Plaid item/access token cursors as of the latest run. Updates continuously until workflow finishes running, then adds all final accounts/cursors to new plaid_cursors_YYYYMMDD partition"
         table_schema = [
             {
@@ -258,22 +250,19 @@ class BqTableSchemas:
             },
         ]
 
-        schema = {
-            "project_id": project_id,
-            "dataset_id": dataset_id,
-            "table_id": table_id,
-            "full_table_name": full_table_name,
-            "table_description": table_description,
-            "table_schema": table_schema,
-        }
+        return BqTable(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            table_description=table_description,
+            table_schema=table_schema,
+        )
 
-        return schema
-
+    @property
     def plaid_transactions_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "plaid_transactions_YYYYMMDD"
-        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores Plaid transactions, partitioned daily"
         table_schema = [
             {
@@ -577,22 +566,19 @@ class BqTableSchemas:
             },
         ]
 
-        schema = {
-            "project_id": project_id,
-            "dataset_id": dataset_id,
-            "table_id": table_id,
-            "full_table_name": full_table_name,
-            "table_description": table_description,
-            "table_schema": table_schema,
-        }
+        return BqTable(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            table_description=table_description,
+            table_schema=table_schema,
+        )
 
-        return schema
-
+    @property
     def plaid_removed_transactions_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "plaid_removed_transactions_YYYYMMDD"
-        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores Plaid removed transactions, partitioned daily"
         table_schema = [
             {
@@ -621,22 +607,19 @@ class BqTableSchemas:
             },
         ]
 
-        schema = {
-            "project_id": project_id,
-            "dataset_id": dataset_id,
-            "table_id": table_id,
-            "full_table_name": full_table_name,
-            "table_description": table_description,
-            "table_schema": table_schema,
-        }
+        return BqTable(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            table_description=table_description,
+            table_schema=table_schema,
+        )
 
-        return schema
-
+    @property
     def plaid_investment_holdings_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "plaid_investment_holdings_YYYYMMDD"
-        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores Plaid investment holdings, partitioned daily"
         table_schema = [
             {
@@ -853,22 +836,19 @@ class BqTableSchemas:
             },
         ]
 
-        schema = {
-            "project_id": project_id,
-            "dataset_id": dataset_id,
-            "table_id": table_id,
-            "full_table_name": full_table_name,
-            "table_description": table_description,
-            "table_schema": table_schema,
-        }
+        return BqTable(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            table_description=table_description,
+            table_schema=table_schema,
+        )
 
-        return schema
-
+    @property
     def plaid_investment_transactions_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "plaid_investment_transactions_YYYYMMDD"
-        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores Plaid investment transactions, partitioned daily"
         table_schema = [
             {
@@ -1091,22 +1071,19 @@ class BqTableSchemas:
             },
         ]
 
-        schema = {
-            "project_id": project_id,
-            "dataset_id": dataset_id,
-            "table_id": table_id,
-            "full_table_name": full_table_name,
-            "table_description": table_description,
-            "table_schema": table_schema,
-        }
+        return BqTable(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            table_description=table_description,
+            table_schema=table_schema,
+        )
 
-        return schema
-
+    @property
     def personal_finance_tableau_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
         table_id = "personal_finance_tableau_YYYYMMDD"
-        full_table_name = project_id + "." + dataset_id + "." + table_id
         table_description = "Stores data for personal finance dashboard"
         table_schema = [
             {
@@ -1327,13 +1304,10 @@ class BqTableSchemas:
             },
         ]
 
-        schema = {
-            "project_id": project_id,
-            "dataset_id": dataset_id,
-            "table_id": table_id,
-            "full_table_name": full_table_name,
-            "table_description": table_description,
-            "table_schema": table_schema,
-        }
-
-        return schema
+        return BqTable(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            table_description=table_description,
+            table_schema=table_schema,
+        )

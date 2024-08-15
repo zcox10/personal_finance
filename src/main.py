@@ -8,11 +8,11 @@ from datetime import datetime, timedelta
 from utils.bq_utils import BqUtils
 from utils.secrets_utils import SecretsUtils
 from utils.plaid_utils import PlaidUtils
-from utils.budget_values import BudgetValues
-from utils.financial_accounts import FinancialAccounts
-from utils.plaid_transactions import PlaidTransactions
-from utils.plaid_investments import PlaidInvestments
-from utils.query_jobs import QueryJobs
+from jobs.budget_values import BudgetValues
+from jobs.financial_accounts import FinancialAccounts
+from jobs.plaid_transactions import PlaidTransactions
+from jobs.plaid_investments import PlaidInvestments
+from jobs.query_jobs import QueryJobs
 
 # SECRETS
 secrets = SecretsUtils().create_secrets_dict(plaid_secret_type="PROD")
@@ -117,7 +117,7 @@ def run_plaid_transactions(event, context):
     )
 
     # only upload transactions_df to BQ if there is at least one non-null df
-    plaid_transactions.upload_transactions_df_list_to_bq(transactions_df_list, OFFSET, WRITE_DISPOSITION)
+    plaid_transactions.upload_transactions_df_list_to_bq(transactions_df_list, OFFSET)
 
     # only upload removed_df to BQ if there is at least one non-null df
     plaid_transactions.upload_removed_df_list_to_bq(removed_df_list, OFFSET, WRITE_DISPOSITION)
@@ -164,7 +164,7 @@ def run_personal_finance_queries(event, context):
 
     query_jobs = QueryJobs(bq_client)
     query_jobs.create_tableau_table(
-        sql_path="jobs/queries/personal_finance_tableau.sql",
+        sql_path="queries/personal_finance_tableau.sql",
         offset=OFFSET,
         write_disposition=WRITE_DISPOSITION,
     )
@@ -206,7 +206,7 @@ def run_delete_latest_tables(event, context):
         "plaid_transactions_YYYYMMDD",
         "temp_plaid_cursors",
         "plaid_investment_holdings_YYYYMMDD",
-        "plaid_investment_transactions_YYYYMMDD",
+        # "plaid_investment_transactions_YYYYMMDD",
         "personal_finance_tableau_YYYYMMDD",
     ]
 
@@ -220,34 +220,34 @@ def run_delete_latest_tables(event, context):
         )
 
 
-# def main_test(event, context):
+def main_test(event, context):
 
-#     run_delete_latest_tables("hello", "world")
+    run_delete_latest_tables("hello", "world")
 
-#     time.sleep(3)
+    time.sleep(3)
 
-#     run_financial_accounts("hello", "world")
+    run_financial_accounts("hello", "world")
 
-#     time.sleep(3)
+    time.sleep(3)
 
-#     run_budget_values("hello", "world")
+    run_budget_values("hello", "world")
 
-#     time.sleep(3)
+    time.sleep(3)
 
-#     run_plaid_investments("hello", "world")
+    run_plaid_investments("hello", "world")
 
-#     time.sleep(3)
+    time.sleep(3)
 
-#     run_plaid_transactions("hello", "world")
+    run_plaid_transactions("hello", "world")
 
-#     time.sleep(3)
+    time.sleep(3)
 
-#     run_personal_finance_queries("hello", "world")
+    run_personal_finance_queries("hello", "world")
 
-#     time.sleep(3)
+    time.sleep(3)
 
-#     run_data_table_retention("hello", "world")
+    run_data_table_retention("hello", "world")
 
 
-# if __name__ == "__main__":
-#     main_test("hello", "world")
+if __name__ == "__main__":
+    main_test("hello", "world")

@@ -4,7 +4,7 @@ from google.cloud import scheduler_v1
 from google.cloud import functions_v2
 from google.protobuf import duration_pb2
 from utils.bq_utils import BqUtils
-from jobs.cloud_schemas import CloudSchemas
+from schemas.cloud_schemas import CloudSchemas
 
 
 class GcpUtils:

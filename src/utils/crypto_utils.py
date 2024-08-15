@@ -1,6 +1,5 @@
 import requests
 import numpy as np
-import sys
 
 
 class CryptoUtils:
