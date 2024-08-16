@@ -9,7 +9,6 @@ class CloudSchemas:
         self.service_account = "zsc-service-account@zsc-personal.iam.gserviceaccount.com"
         self.timezone = "UTC"
 
-    @property
     def financial_accounts(self) -> dict:
         return {
             "project_id": self.project_id,
@@ -27,7 +26,6 @@ class CloudSchemas:
             "schedule": "0 10 * * *",  # 10:00am UTC
         }
 
-    @property
     def budget_values(self) -> dict:
         return {
             "project_id": self.project_id,
@@ -45,7 +43,6 @@ class CloudSchemas:
             "schedule": "10 10 * * *",  # 10:10am UTC
         }
 
-    @property
     def plaid_transactions(self) -> dict:
         return {
             "project_id": self.project_id,
@@ -63,7 +60,6 @@ class CloudSchemas:
             "schedule": "15 10 * * *",  # 10:15am UTC
         }
 
-    @property
     def plaid_investments(self) -> dict:
         return {
             "project_id": self.project_id,
@@ -81,7 +77,6 @@ class CloudSchemas:
             "schedule": "30 10 * * *",  # 10:30am UTC
         }
 
-    @property
     def personal_finance_queries(self) -> dict:
         return {
             "project_id": self.project_id,
@@ -99,7 +94,6 @@ class CloudSchemas:
             "schedule": "45 10 * * *",  # 10:45am UTC
         }
 
-    @property
     def data_table_retention(self) -> dict:
         return {
             "project_id": self.project_id,
@@ -117,7 +111,6 @@ class CloudSchemas:
             "schedule": "00 11 * * *",  # 11:00am UTC
         }
 
-    @property
     def test_job(self) -> dict:
         return {
             "project_id": self.project_id,

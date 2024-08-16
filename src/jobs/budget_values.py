@@ -5,10 +5,10 @@ from schemas.bq_table_schemas import BqTableSchemas
 
 class BudgetValues:
     def __init__(self, bq_client):
-        self.__bq = BqUtils(bq_client=bq_client)
-        self.__bq_tables = BqTableSchemas()
+        self._bq = BqUtils(bq_client=bq_client)
+        self._bq_tables = BqTableSchemas()
 
-    def __backfill_value_exists(self, entry, partition_month):
+    def _backfill_value_exists(self, entry, partition_month):
         """
         Checks if a backfill value exists for a given partition month in the provided entry.
 
@@ -34,7 +34,7 @@ class BudgetValues:
 
         return True
 
-    def __update_budget_schema_with_backfill_values(self, budget_schema, partition_month):
+    def _update_budget_schema_with_backfill_values(self, budget_schema, partition_month):
         """
         Updates the budget_schema with backfill values if partition_month matches any keys in backfill.
 
@@ -52,7 +52,7 @@ class BudgetValues:
             updated_entry = entry.copy()
 
             # Check if backfill key is present
-            if self.__backfill_value_exists(entry, partition_month):
+            if self._backfill_value_exists(entry, partition_month):
                 updated_entry["budget_amount"] = updated_entry["backfill"][partition_month]
 
             # Append the updated entry to the new schema
@@ -60,13 +60,13 @@ class BudgetValues:
 
         return updated_schema
 
-    def __create_budget_values_df(self, partition_month):
+    def _create_budget_values_df(self, partition_month):
         """
-        Generates budget_values_df via self.__budget_schema() and self.__update_budget_schema_with_backfill_values()
+        Generates budget_values_df via self._budget_schema() and self._update_budget_schema_with_backfill_values()
         """
 
-        budget_schema = self.__budget_schema()
-        updated_schema = self.__update_budget_schema_with_backfill_values(budget_schema, partition_month)
+        budget_schema = self._budget_schema()
+        updated_schema = self._update_budget_schema_with_backfill_values(budget_schema, partition_month)
 
         return pd.DataFrame(
             updated_schema,
@@ -94,25 +94,25 @@ class BudgetValues:
         """
 
         # get BQ schema information
-        budget_values_bq = self.__bq.update_table_schema_partition(
-            self.__bq_tables.budget_values_YYYYMM,
+        budget_values_bq = self._bq.update_table_schema_partition(
+            self._bq_tables.budget_values_YYYYMM(),
             offset=offset,
         )
 
-        partition_month = self.__bq.get_date(offset, partition_format="YYYYMM").replace(day=1).strftime("%Y-%m-%d")
+        partition_month = self._bq.get_date(offset, partition_format="YYYYMM").replace(day=1).strftime("%Y-%m-%d")
 
         # get budget_values_df
-        budget_values_df = self.__create_budget_values_df(partition_month)
+        budget_values_df = self._create_budget_values_df(partition_month)
 
         # upload df to budget_values_YYYYMM. "WRITE_TRUNCATE" because multiple transaction_df's will be loaded
-        return self.__bq.load_df_to_bq(
+        return self._bq.load_df_to_bq(
             budget_values_df,
             budget_values_bq.full_table_name,
             budget_values_bq.table_schema,
             "WRITE_TRUNCATE",
         )
 
-    def __budget_schema(self):
+    def _budget_schema(self):
         """
         The budget schema including categories and budget amounts
         """

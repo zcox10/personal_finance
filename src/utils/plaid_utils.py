@@ -20,9 +20,9 @@ from plaid.model.item_remove_request import ItemRemoveRequest
 
 class PlaidUtils:
     def __init__(self, bq_client, client_id, client_secret, host):
-        self.__bq = BqUtils(bq_client=bq_client)
+        self._bq = BqUtils(bq_client=bq_client)
         self.plaid_client = self.authenticate(client_id, client_secret, host)
-        self.__bq_tables = BqTableSchemas()
+        self._bq_tables = BqTableSchemas()
 
     def authenticate(self, client_id, client_secret, host):
         """
@@ -171,7 +171,7 @@ class PlaidUtils:
 
             transactions_json = response.to_dict()
 
-            # self.__bq.pretty_print_response(transactions_json)
+            # self._bq.pretty_print_response(transactions_json)
 
             if len(transactions_json["added"]) > 0:
                 transactions_added += transactions_json["added"]

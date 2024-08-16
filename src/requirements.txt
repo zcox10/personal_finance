@@ -1,16 +1,30 @@
 # make sure all packages are pinned
+
+# google cloud packages
 grpcio==1.64.1
 google-cloud-bigquery==3.18.0
 google-cloud-secret-manager==2.20.0
 google-cloud-pubsub==2.21.1
 google-cloud-scheduler==2.13.3
 google-cloud-functions==1.16.3
-python-dateutil==2.9.0
-db-dtypes==1.2.0
+
+# pandas related packages
 pandas==2.2.2
-python-Levenshtein==0.25.1
-plaid_python==21.0.0
-notebook==7.0.7
+db-dtypes==1.2.0
 pandas-gbq==0.23.0
+python-dateutil==2.9.0
+python-Levenshtein==0.25.1
+
+# notebooks/plotting packages
+notebook==7.0.7
 matplotlib==3.9.2
+
+# sending emails
 sendgrid==6.11.0
+
+# plaid
+plaid_python==21.0.0
+
+# type checking
+mypy==1.11.1
+pandas-stubs==2.2.2.240807

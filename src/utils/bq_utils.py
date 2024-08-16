@@ -252,6 +252,20 @@ class BqUtils:
 
         return [t for t in df["table_id"]]
 
+    def get_table_suffix(self, table_id, table_prefix):
+        """
+        Provide a table_id and table_prefix to receive the table's suffix.
+        i.e. if table_id = "test_table_20240815" and table_prefix = "test_table_", return "20240815"
+
+        Args:
+            table_id (str): Table id {table_id}_YYYYMMDD format used to filter tables.
+            table_prefix (str): Table id without _YYYYMMDD
+
+        Returns:
+            str: A BQ table's suffix when providing a prefix
+        """
+        return table_id.replace(table_prefix, "")
+
     def get_latest_full_table_name(self, dataset_id, table_id):
         """
         Get the latest partition of a BigQuery full table {project_id}.{dataset_id}.{table_id} matching the specified prefix.
@@ -277,6 +291,35 @@ class BqUtils:
             ":", "."
         )
         return latest_partition
+
+    def get_second_latest_full_table_name(self, dataset_id, table_id):
+        """
+        Get the latest partition of a BigQuery full table {project_id}.{dataset_id}.{table_id} matching the specified prefix.
+
+        Args:
+            dataset_id (str): ID of the dataset containing the tables.
+            table_id (str): Table id {table_id}_YYYYMMDD format used to filter tables.
+
+        Returns:
+            str: Full table ID of the latest partition.
+        """
+
+        table_prefix = self.replace_table_suffix(table_id)
+
+        # Get all tables matching the prefix
+        tables = self.bq_client.list_tables(self.bq_client.dataset(dataset_id))
+
+        # Filter tables to only include those matching the prefix
+        matching_tables = [table for table in tables if table.table_id.startswith(table_prefix)]
+
+        if len(matching_tables) < 2:
+            raise ValueError("There are less than two partitions available.")
+
+        # Sort partitions by date in descending order
+        sorted_tables = sorted(matching_tables, key=lambda table: table.table_id.split("_")[-1], reverse=True)
+
+        # return second-to-latest partition
+        return sorted_tables[1].full_table_id.replace(":", ".")
 
     def get_latest_table_partition(self, dataset_id, table_id):
         """

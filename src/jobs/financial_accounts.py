@@ -9,12 +9,12 @@ from schemas.bq_table_schemas import BqTableSchemas
 
 class FinancialAccounts:
     def __init__(self, bq_client, plaid_client):
-        self.__bq = BqUtils(bq_client=bq_client)
-        self.__crypto = CryptoUtils()
-        self.__plaid_client = plaid_client
-        self.__bq_tables = BqTableSchemas()
+        self._bq = BqUtils(bq_client=bq_client)
+        self._crypto = CryptoUtils()
+        self._plaid_client = plaid_client
+        self._bq_tables = BqTableSchemas()
 
-    def __create_crypto_accounts_df(self, eth_addresses, btc_addresses, eth_api_key, btc_api_key):
+    def _create_crypto_accounts_df(self, eth_addresses, btc_addresses, eth_api_key, btc_api_key):
         item_ids = []
         persistent_account_ids = []
         account_ids = []
@@ -32,7 +32,7 @@ class FinancialAccounts:
         products = []
         billed_products = []
 
-        crypto_balances = self.__crypto.get_crypto_balances(eth_addresses, btc_addresses, eth_api_key, btc_api_key)
+        crypto_balances = self._crypto.get_crypto_balances(eth_addresses, btc_addresses, eth_api_key, btc_api_key)
 
         # if no results, return None
         if len(crypto_balances) == 0:
@@ -86,7 +86,7 @@ class FinancialAccounts:
             }
         )
 
-    def __create_plaid_accounts_df(self, access_token, plaid_country_codes):
+    def _create_plaid_accounts_df(self, access_token, plaid_country_codes):
         """
         Create a DataFrame containing Plaid financial account information.
 
@@ -97,7 +97,7 @@ class FinancialAccounts:
         Returns:
             pandas.DataFrame: DataFrame containing financial account data
         """
-        responses = self.__plaid_client.get_accounts(access_token)
+        responses = self._plaid_client.get_accounts(access_token)
 
         # only continue if data is present
         if len(responses["accounts"]) == 0:
@@ -158,7 +158,7 @@ class FinancialAccounts:
 
         institutions_dict = {}
         for institution_id in distinct_institutions:
-            institution = self.__plaid_client.get_institution_by_id(institution_id, plaid_country_codes)
+            institution = self._plaid_client.get_institution_by_id(institution_id, plaid_country_codes)
             institution_name = institution["institution"]["name"]
             institutions_dict[institution_id] = institution_name
 
@@ -191,7 +191,7 @@ class FinancialAccounts:
         )
         return accounts_df
 
-    def __check_account_duplicates(self, full_table_name, accounts_df):
+    def _check_account_duplicates(self, full_table_name, accounts_df):
         """
         Check for duplicate accounts in the financial_accounts table.
 
@@ -212,7 +212,7 @@ class FinancialAccounts:
               account_id
             FROM `{full_table_name}`
             """
-            get_accts_df = self.__bq.query(accts_q)
+            get_accts_df = self._bq.query(accts_q)
 
             # determine if there are any duplicate persistent_account_id's
             get_persistent_account_ids = [i for i in get_accts_df["persistent_account_id"].unique() if i is not None]
@@ -226,7 +226,7 @@ class FinancialAccounts:
                 for i in duplicate_persistent_account_ids:
                     print(f"- {i}")
 
-                user_decision = self.__bq.user_prompt(
+                user_decision = self._bq.user_prompt(
                     prompt="\nDo you want to continue?",
                     action_response="adding persistent_account_id(s) that are already present",
                     non_action_response="did not add persistent_account_id(s)",
@@ -244,7 +244,7 @@ class FinancialAccounts:
                     print(f"- {i}")
 
                 # prompt user to continue
-                user_decision = self.__bq.user_prompt(
+                user_decision = self._bq.user_prompt(
                     prompt="\nDo you want to continue?",
                     action_response="adding account_id(s) that are already present",
                     non_action_response="did not add account_id(s)",
@@ -271,11 +271,11 @@ class FinancialAccounts:
 
         # add Plaid accounts
         for token in list(set(plaid_access_tokens)):
-            accounts_df = self.__create_plaid_accounts_df(token, plaid_country_codes)
+            accounts_df = self._create_plaid_accounts_df(token, plaid_country_codes)
             if accounts_df is not None:
                 df_list.append(accounts_df)
 
-        crypto_df = self.__create_crypto_accounts_df(eth_addresses, btc_addresses, eth_api_key, btc_api_key)
+        crypto_df = self._create_crypto_accounts_df(eth_addresses, btc_addresses, eth_api_key, btc_api_key)
         if crypto_df is not None:
             df_list.append(crypto_df)
 
@@ -310,8 +310,8 @@ class FinancialAccounts:
         """
 
         # generate schema for new financial_accounts_YYYYMMDD table
-        financial_accounts_bq = self.__bq.update_table_schema_partition(
-            schema=self.__bq_tables.financial_accounts_YYYYMMDD,
+        financial_accounts_bq = self._bq.update_table_schema_partition(
+            schema=self._bq_tables.financial_accounts_YYYYMMDD(),
             offset=offset,
         )
 
@@ -320,7 +320,7 @@ class FinancialAccounts:
             plaid_access_tokens, plaid_country_codes, eth_addresses, btc_addresses, eth_api_key, btc_api_key
         )
         if accounts_df is not None:
-            self.__bq.load_df_to_bq(
+            self._bq.load_df_to_bq(
                 accounts_df,
                 financial_accounts_bq.full_table_name,
                 financial_accounts_bq.table_schema,
