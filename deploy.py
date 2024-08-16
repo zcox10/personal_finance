@@ -16,17 +16,23 @@ def main():
         cs.plaid_investments(),
         cs.personal_finance_queries(),
         cs.data_table_retention(),
+        # cs.test_job(),
     ]
 
     for schema in schemas:
-        print("\n\nCREATE PUB/SUB:", schema.trigger_topic)
-        gcp.create_pubsub_topic(schema=schema, confirm=False)
+        # print("\n\nCREATE PUB/SUB:", schema.trigger_topic)
+        # gcp.create_pubsub_topic(schema=schema, confirm=False)
 
         print("\n\nCREATE FUNCTION:", schema.function_name)
         gcp.create_cloud_function(schema=schema, show_output=True)
 
         print("\n\nCREATE SCHEDULER:", schema.job_name)
         gcp.create_scheduler_job(schema=schema, confirm=False)
+
+        # # delete methods
+        # gcp.delete_pubsub_topic(schema.project_id, schema.trigger_topic, confirm=False)
+        # gcp.delete_scheduler_job(schema.project_id, schema.region, schema.job_name, confirm=False)
+        # gcp.delete_cloud_function(schema.project_id, schema.region, schema.function_name, confirm=False)
 
 
 if __name__ == "__main__":
