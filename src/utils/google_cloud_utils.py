@@ -49,21 +49,19 @@ class GcpUtils:
         else:
             print(f'Pub/Sub topic, "{topic_name}", does not exist!')
 
-    def create_pubsub_topic(
-        self, project_id, topic_name, labels=None, kms_key_name=None, message_retention_duration=None, confirm=True
-    ):
-        if self.does_pubsub_topic_exist(project_id, topic_name):
-            self.delete_pubsub_topic(project_id, topic_name, confirm)
+    def create_pubsub_topic(self, schema, confirm=True):
+        if self.does_pubsub_topic_exist(schema.project_id, schema.trigger_topic):
+            self.delete_pubsub_topic(schema.project_id, schema.trigger_topic, confirm)
 
-        topic_path = self._pubsub_client.topic_path(project_id, topic_name)
-        topic = pubsub_v1.types.Topic(name=topic_path, labels=labels, kms_key_name=kms_key_name)
+        topic_path = self._pubsub_client.topic_path(schema.project_id, schema.trigger_topic)
+        topic = pubsub_v1.types.Topic(name=topic_path, labels=schema.labels, kms_key_name=schema.kms_key_name)
 
-        if message_retention_duration:
-            message_retention = duration_pb2.Duration(seconds=message_retention_duration)
+        if schema.message_retention_duration:
+            message_retention = duration_pb2.Duration(seconds=schema.message_retention_duration)
             topic.message_retention_duration = message_retention
 
         response = self._pubsub_client.create_topic(request=topic)
-        print(f'SUCCESS: Pub/Sub topic, "{topic_name}", created!')
+        print(f'SUCCESS: Pub/Sub topic, "{schema.trigger_topic}", created!')
         return response
 
     def does_scheduler_job_exist(self, project_id, location, job_name):
@@ -95,25 +93,23 @@ class GcpUtils:
         else:
             print(f'Cloud Scheduler job, "{job_name}", does not exist!')
 
-    def create_scheduler_job(
-        self, project_id, location, job_name, schedule, timezone, topic_name, payload=None, confirm=True
-    ):
-        if self.does_scheduler_job_exist(project_id, location, job_name):
-            self.delete_scheduler_job(project_id, location, job_name, confirm)
+    def create_scheduler_job(self, schema, confirm=True):
+        if self.does_scheduler_job_exist(schema.project_id, schema.region, schema.job_name):
+            self.delete_scheduler_job(schema.project_id, schema.region, schema.job_name, confirm)
 
-        parent = f"projects/{project_id}/locations/{location}"
+        parent = f"projects/{schema.project_id}/locations/{schema.region}"
         job = {
-            "name": f"{parent}/jobs/{job_name}",
-            "schedule": schedule,
-            "time_zone": timezone,
+            "name": f"{parent}/jobs/{schema.job_name}",
+            "schedule": schema.schedule,
+            "time_zone": schema.timezone,
             "pubsub_target": {
-                "topic_name": f"projects/{project_id}/topics/{topic_name}",
-                "data": payload.encode() if payload else None,
+                "topic_name": f"projects/{schema.project_id}/topics/{schema.trigger_topic}",
+                "data": schema.payload.encode() if schema.payload else None,
             },
         }
 
         response = self._scheduler_client.create_job(parent=parent, job=job)
-        print(f'SUCCESS: Cloud Scheduler job, "{job_name}", created!')
+        print(f'SUCCESS: Cloud Scheduler job, "{schema.job_name}", created!')
         return response
 
     def does_cloud_function_exist(self, project_id, location, function_name):
@@ -145,29 +141,17 @@ class GcpUtils:
         else:
             print(f'Cloud Function, "{function_name}", does not exist!')
 
-    def create_cloud_function(
-        self,
-        function_name,
-        trigger_topic,
-        source,
-        runtime,
-        entry_point,
-        region,
-        timeout,
-        memory,
-        service_account,
-        show_output=False,
-    ):
+    def create_cloud_function(self, schema, show_output=False):
         command = (
-            f"gcloud functions deploy {function_name} \\\n"
-            f"    --trigger-topic={trigger_topic} \\\n"
-            f"    --source={source} \\\n"
-            f"    --runtime={runtime} \\\n"
-            f"    --entry-point={entry_point} \\\n"
-            f"    --region={region} \\\n"
-            f"    --timeout={timeout} \\\n"
-            f"    --memory={memory} \\\n"
-            f"    --service-account={service_account} \\\n"
+            f"gcloud functions deploy {schema.function_name} \\\n"
+            f"    --trigger-topic={schema.trigger_topic} \\\n"
+            f"    --source={schema.source} \\\n"
+            f"    --runtime={schema.runtime} \\\n"
+            f"    --entry-point={schema.entry_point} \\\n"
+            f"    --region={schema.region} \\\n"
+            f"    --timeout={schema.timeout} \\\n"
+            f"    --memory={schema.memory} \\\n"
+            f"    --service-account={schema.service_account} \\\n"
             f"    --gen2"
         )
         # print(command)
