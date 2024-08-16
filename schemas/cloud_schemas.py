@@ -4,8 +4,6 @@ class CloudSchema:
 
         # trigger topic type
         self.target_type = "http"  # options are "http" or "pubsub"
-
-        # http
         self.http_method = "GET"  # e.g. "POST" or "GET"
 
         # pubsub

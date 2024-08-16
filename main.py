@@ -1,4 +1,3 @@
-import base64
 import time
 import plaid
 from google.cloud import bigquery
@@ -8,6 +7,8 @@ from datetime import datetime, timedelta
 from utils.bq_utils import BqUtils
 from utils.secrets_utils import SecretsUtils
 from utils.plaid_utils import PlaidUtils
+
+# jobs
 from jobs.budget_values import BudgetValues
 from jobs.financial_accounts import FinancialAccounts
 from jobs.plaid_transactions import PlaidTransactions
@@ -44,9 +45,7 @@ bq = BqUtils(bq_client=bq_client)
 plaid_client = PlaidUtils(bq_client, PLAID_CLIENT_ID, PLAID_SECRET, PLAID_HOST)
 
 
-def run_financial_accounts(event, context):
-    # pubsub_message = base64.b64decode(event["data"]).decode("utf-8")
-    # print(f"Received message: {pubsub_message}")
+def run_financial_accounts(request):
 
     print("\n******************** STARTING financial_accounts ********************")
 
@@ -74,7 +73,7 @@ def run_financial_accounts(event, context):
     return "hello-world"
 
 
-def run_budget_values(event, context):
+def run_budget_values(request):
     print("\n******************** STARTING budget_values ********************")
 
     # init client
@@ -87,7 +86,7 @@ def run_budget_values(event, context):
     return "hello-world"
 
 
-def run_plaid_transactions(event, context):
+def run_plaid_transactions(request):
     print("\n******************** STARTING plaid_transactions ********************")
 
     # init client
@@ -130,7 +129,7 @@ def run_plaid_transactions(event, context):
     return "hello-world"
 
 
-def run_plaid_investments(event, context):
+def run_plaid_investments(request):
     print("\n******************** STARTING plaid_investments ********************")
 
     # init client
@@ -161,7 +160,7 @@ def run_plaid_investments(event, context):
     return "hello-world"
 
 
-def run_personal_finance_queries(event, context):
+def run_personal_finance_queries(request):
     print("\n******************** STARTING personal_finance_queries ********************")
 
     query_jobs = QueryJobs(bq_client)
@@ -174,7 +173,7 @@ def run_personal_finance_queries(event, context):
     return "hello-world"
 
 
-def run_data_table_retention(event, context):
+def run_data_table_retention(request):
     print("\n******************** STARTING data_table_retention ********************")
 
     # only keep partitions in last 30d
@@ -201,7 +200,7 @@ def run_data_table_retention(event, context):
     return "hello-world"
 
 
-def run_delete_latest_tables(event, context):
+def run_delete_latest_tables(request):
     print("\n******************** STARTING delete_latest_tables ********************")
     tables = [
         "financial_accounts_YYYYMMDD",
@@ -226,35 +225,35 @@ def run_delete_latest_tables(event, context):
     return "hello-world"
 
 
-def main_test(request):
-    # run_delete_latest_tables("hello", "world")
+# def main_test(request):
+#     run_delete_latest_tables("hello-world")
 
-    # time.sleep(3)
+#     time.sleep(3)
 
-    # run_financial_accounts("hello", "world")
+#     run_financial_accounts("hello-world")
 
-    # time.sleep(3)
+#     time.sleep(3)
 
-    # run_budget_values("hello", "world")
+#     run_budget_values("hello-world")
 
-    # time.sleep(3)
+#     time.sleep(3)
 
-    # run_plaid_investments("hello", "world")
+#     run_plaid_investments("hello-world")
 
-    # time.sleep(3)
+#     time.sleep(3)
 
-    # run_plaid_transactions("hello", "world")
+#     run_plaid_transactions("hello-world")
 
-    # time.sleep(3)
+#     time.sleep(3)
 
-    # run_personal_finance_queries("hello", "world")
+#     run_personal_finance_queries("hello-world")
 
-    # time.sleep(3)
+#     time.sleep(3)
 
-    # run_data_table_retention("hello", "world")
+#     run_data_table_retention("hello-world")
 
-    print("SUCCESS: main_test() complete!")
-    return "hello-world"
+#     print("SUCCESS: main_test() complete!")
+#     return "hello-world"
 
 
 # if __name__ == "__main__":
