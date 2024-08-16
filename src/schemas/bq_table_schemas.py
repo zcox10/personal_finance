@@ -2,8 +2,6 @@ from utils.bq_table_utils import BqTable
 
 
 class BqTableSchemas:
-
-    @property
     def budget_values_YYYYMM(self):
         project_id = "zsc-personal"
         dataset_id = "budget_values"
@@ -56,7 +54,6 @@ class BqTableSchemas:
             table_schema=table_schema,
         )
 
-    @property
     def financial_accounts_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
@@ -200,7 +197,6 @@ class BqTableSchemas:
             table_schema=table_schema,
         )
 
-    @property
     def plaid_cursors_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
@@ -229,7 +225,6 @@ class BqTableSchemas:
             table_schema=table_schema,
         )
 
-    @property
     def temp_plaid_cursors(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
@@ -258,7 +253,6 @@ class BqTableSchemas:
             table_schema=table_schema,
         )
 
-    @property
     def plaid_transactions_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
@@ -574,7 +568,6 @@ class BqTableSchemas:
             table_schema=table_schema,
         )
 
-    @property
     def plaid_removed_transactions_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
@@ -615,7 +608,6 @@ class BqTableSchemas:
             table_schema=table_schema,
         )
 
-    @property
     def plaid_investment_holdings_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
@@ -844,7 +836,6 @@ class BqTableSchemas:
             table_schema=table_schema,
         )
 
-    @property
     def plaid_investment_transactions_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"
@@ -1079,7 +1070,6 @@ class BqTableSchemas:
             table_schema=table_schema,
         )
 
-    @property
     def personal_finance_tableau_YYYYMMDD(self):
         project_id = "zsc-personal"
         dataset_id = "personal_finance"

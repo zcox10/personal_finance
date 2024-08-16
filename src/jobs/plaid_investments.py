@@ -6,9 +6,9 @@ from utils.bq_utils import BqUtils
 
 class PlaidInvestments:
     def __init__(self, bq_client, plaid_client):
-        self.__bq = BqUtils(bq_client=bq_client)
-        self.__plaid_client = plaid_client
-        self.__bq_tables = BqTableSchemas()
+        self._bq = BqUtils(bq_client=bq_client)
+        self._plaid_client = plaid_client
+        self._bq_tables = BqTableSchemas()
 
     def generate_investments_dfs(self, start_date, end_date, access_token):
         """
@@ -25,14 +25,14 @@ class PlaidInvestments:
                 - investment_transactions_df (pandas.DataFrame): DataFrame containing investment transactions data.
         """
 
-        investments_holdings_json = self.__plaid_client.get_investment_holdings_data(access_token)
-        holdings_df = self.__create_holdings_df(investments_holdings_json)
+        investments_holdings_json = self._plaid_client.get_investment_holdings_data(access_token)
+        holdings_df = self._create_holdings_df(investments_holdings_json)
 
-        investment_transactions_json, securities_json, item_id = self.__plaid_client.get_investment_transactions_data(
+        investment_transactions_json, securities_json, item_id = self._plaid_client.get_investment_transactions_data(
             start_date, end_date, access_token
         )
 
-        investment_transactions_df = self.__create_investment_transactions_df(
+        investment_transactions_df = self._create_investment_transactions_df(
             investment_transactions_json, securities_json, item_id
         )
 
@@ -66,7 +66,7 @@ class PlaidInvestments:
 
         return holdings_df_list, investment_transactions_df_list
 
-    def __create_holdings_df(self, investments_json):
+    def _create_holdings_df(self, investments_json):
         """
         Create a DataFrame containing investment holdings data.
 
@@ -110,7 +110,7 @@ class PlaidInvestments:
             vested_values.append(i["vested_value"])
             security_ids.append(i["security_id"])
 
-        securities_data = self.__create_securities_dict(investments_json["securities"], security_ids)
+        securities_data = self._create_securities_dict(investments_json["securities"], security_ids)
 
         holdings_df = pd.DataFrame(
             {
@@ -131,7 +131,7 @@ class PlaidInvestments:
         )
         return holdings_df
 
-    def __create_investment_transactions_df(self, investments_json, securities_json, item_id):
+    def _create_investment_transactions_df(self, investments_json, securities_json, item_id):
         """
         Create a DataFrame containing investment transactions data.
 
@@ -182,7 +182,7 @@ class PlaidInvestments:
             unofficial_currency_codes.append(i["unofficial_currency_code"])
             security_ids.append(i["security_id"])
 
-        securities_data = self.__create_securities_dict(securities_json, security_ids)
+        securities_data = self._create_securities_dict(securities_json, security_ids)
 
         investment_transactions_df = pd.DataFrame(
             {
@@ -204,7 +204,7 @@ class PlaidInvestments:
         )
         return investment_transactions_df
 
-    def __create_securities_dict(self, securities_json, security_ids):
+    def _create_securities_dict(self, securities_json, security_ids):
         """
         Create a dictionary containing securities information.
 
@@ -259,13 +259,13 @@ class PlaidInvestments:
         securities_data = []
         for security_id in security_ids:
             if security_id is None:
-                securities_data.append(self.__empty_securities_dict())
+                securities_data.append(self._empty_securities_dict())
             else:
                 securities_data.append(securities_dict[security_id])
 
         return securities_data
 
-    def __empty_securities_dict(self):
+    def _empty_securities_dict(self):
         """
         Create an empty dictionary representing securities data.
 
@@ -312,13 +312,13 @@ class PlaidInvestments:
         """
 
         # get BQ schema information
-        plaid_investment_transactions_bq = self.__bq.update_table_schema_partition(
-            self.__bq_tables.plaid_investment_transactions_YYYYMMDD,
+        plaid_investment_transactions_bq = self._bq.update_table_schema_partition(
+            self._bq_tables.plaid_investment_transactions_YYYYMMDD(),
             offset=offset,
         )
 
         # upload df to plaid_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
-        return self.__bq.load_df_to_bq(
+        return self._bq.load_df_to_bq(
             investment_transactions_df,
             plaid_investment_transactions_bq.full_table_name,
             plaid_investment_transactions_bq.table_schema,
@@ -359,13 +359,13 @@ class PlaidInvestments:
         """
 
         # get BQ schema information
-        plaid_investment_holdings_bq = self.__bq.update_table_schema_partition(
-            self.__bq_tables.plaid_investment_holdings_YYYYMMDD,
+        plaid_investment_holdings_bq = self._bq.update_table_schema_partition(
+            self._bq_tables.plaid_investment_holdings_YYYYMMDD(),
             offset=offset,
         )
 
         # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
-        return self.__bq.load_df_to_bq(
+        return self._bq.load_df_to_bq(
             holdings_df,
             plaid_investment_holdings_bq.full_table_name,
             plaid_investment_holdings_bq.table_schema,

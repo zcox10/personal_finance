@@ -9,12 +9,12 @@ cs = CloudSchemas()
 
 # jobs to run
 jobs = [
-    cs.financial_accounts,
-    cs.budget_values,
-    cs.plaid_transactions,
-    cs.plaid_investments,
-    cs.personal_finance_queries,
-    cs.data_table_retention,
+    cs.financial_accounts(),
+    cs.budget_values(),
+    cs.plaid_transactions(),
+    cs.plaid_investments(),
+    cs.personal_finance_queries(),
+    cs.data_table_retention(),
 ]
 
 for job in jobs:

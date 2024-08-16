@@ -220,34 +220,34 @@ def run_delete_latest_tables(event, context):
         )
 
 
-def main_test(event, context):
+# def main_test(event, context):
 
-    run_delete_latest_tables("hello", "world")
+#     run_delete_latest_tables("hello", "world")
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    run_financial_accounts("hello", "world")
+#     run_financial_accounts("hello", "world")
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    run_budget_values("hello", "world")
+#     run_budget_values("hello", "world")
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    run_plaid_investments("hello", "world")
+#     run_plaid_investments("hello", "world")
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    run_plaid_transactions("hello", "world")
+#     run_plaid_transactions("hello", "world")
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    run_personal_finance_queries("hello", "world")
+#     run_personal_finance_queries("hello", "world")
 
-    time.sleep(3)
+#     time.sleep(3)
 
-    run_data_table_retention("hello", "world")
+#     run_data_table_retention("hello", "world")
 
 
-if __name__ == "__main__":
-    main_test("hello", "world")
+# if __name__ == "__main__":
+#     main_test("hello", "world")
