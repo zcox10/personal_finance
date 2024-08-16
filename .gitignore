@@ -1,5 +1,14 @@
+# files
+.gcloudignore
+.git
 .python-version
-__pycache__/
 .ipynb_checkpoints
 .DS_Store
+
+# secrets
 secrets.yaml
+
+# dirs
+__pycache__/
+.mypy_cache/
+notebooks/

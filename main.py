@@ -70,8 +70,8 @@ def run_financial_accounts(event, context):
         OFFSET,
         WRITE_DISPOSITION,
     )
-
-    print("SUCCESS: Financial account data uploaded to BQ")
+    print("SUCCESS: run_financial_accounts() complete!")
+    return "hello-world"
 
 
 def run_budget_values(event, context):
@@ -83,7 +83,8 @@ def run_budget_values(event, context):
     # create most recent budget_values_df then upload to bq
     budget_values.upload_budget_values_df_to_bq(OFFSET)
 
-    print("SUCCESS: Budget category data uploaded to BQ")
+    print("SUCCESS: run_budget_values() complete!")
+    return "hello-world"
 
 
 def run_plaid_transactions(event, context):
@@ -125,7 +126,8 @@ def run_plaid_transactions(event, context):
     # Copy temp_cursors to plaid_cursors_YYYYMMDD
     plaid_transactions.copy_temp_cursors_to_cursors_bq_table(OFFSET, write_disposition="WRITE_TRUNCATE")
 
-    print("SUCCESS: Plaid transactions data uploaded to BQ")
+    print("SUCCESS: run_plaid_transactions() complete!")
+    return "hello-world"
 
 
 def run_plaid_investments(event, context):
@@ -155,8 +157,8 @@ def run_plaid_investments(event, context):
     plaid_investments.upload_investment_transactions_df_list_to_bq(
         investment_transactions_df_list, OFFSET, WRITE_DISPOSITION
     )
-
-    print("SUCCESS: Plaid investment data uploaded to BQ")
+    print("SUCCESS: run_plaid_investments() complete!")
+    return "hello-world"
 
 
 def run_personal_finance_queries(event, context):
@@ -168,8 +170,8 @@ def run_personal_finance_queries(event, context):
         offset=OFFSET,
         write_disposition=WRITE_DISPOSITION,
     )
-
-    print("SUCCESS: Personal Finance Tableau query done!")
+    print("SUCCESS: run_personal_finance_queries() complete!")
+    return "hello-world"
 
 
 def run_data_table_retention(event, context):
@@ -195,6 +197,8 @@ def run_data_table_retention(event, context):
         )
 
     bq.delete_list_of_tables(project_id=PROJECT_ID, dataset_id=DATASET_ID, table_ids=table_partitions, confirm=False)
+    print("SUCCESS: run_data_table_retention() complete!")
+    return "hello-world"
 
 
 def run_delete_latest_tables(event, context):
@@ -218,36 +222,40 @@ def run_delete_latest_tables(event, context):
             table_id=table,
             confirm=False,
         )
+    print("SUCCESS: run_delete_latest_tables() complete!")
+    return "hello-world"
 
 
-# def main_test(event, context):
+def main_test(request):
+    # run_delete_latest_tables("hello", "world")
 
-#     run_delete_latest_tables("hello", "world")
+    # time.sleep(3)
 
-#     time.sleep(3)
+    # run_financial_accounts("hello", "world")
 
-#     run_financial_accounts("hello", "world")
+    # time.sleep(3)
 
-#     time.sleep(3)
+    # run_budget_values("hello", "world")
 
-#     run_budget_values("hello", "world")
+    # time.sleep(3)
 
-#     time.sleep(3)
+    # run_plaid_investments("hello", "world")
 
-#     run_plaid_investments("hello", "world")
+    # time.sleep(3)
 
-#     time.sleep(3)
+    # run_plaid_transactions("hello", "world")
 
-#     run_plaid_transactions("hello", "world")
+    # time.sleep(3)
 
-#     time.sleep(3)
+    # run_personal_finance_queries("hello", "world")
 
-#     run_personal_finance_queries("hello", "world")
+    # time.sleep(3)
 
-#     time.sleep(3)
+    # run_data_table_retention("hello", "world")
 
-#     run_data_table_retention("hello", "world")
+    print("SUCCESS: main_test() complete!")
+    return "hello-world"
 
 
 # if __name__ == "__main__":
-#     main_test("hello", "world")
+#     main_test("hello-world")
