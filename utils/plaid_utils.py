@@ -12,7 +12,9 @@ from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.item_get_request import ItemGetRequest
 from plaid.model.investments_holdings_get_request import InvestmentsHoldingsGetRequest
 from plaid.model.investments_transactions_get_request import InvestmentsTransactionsGetRequest
-from plaid.model.investments_transactions_get_request_options import InvestmentsTransactionsGetRequestOptions
+from plaid.model.investments_transactions_get_request_options import (
+    InvestmentsTransactionsGetRequestOptions,
+)
 from plaid.model.item_remove_request import ItemRemoveRequest
 
 # from plaid.model.link_token_transactions import LinkTokenTransactions
@@ -37,7 +39,9 @@ class PlaidUtils:
             plaid_api.PlaidApi: Plaid API client.
         """
 
-        configuration = Configuration(host=host, api_key={"clientId": client_id, "secret": client_secret})
+        configuration = Configuration(
+            host=host, api_key={"clientId": client_id, "secret": client_secret}
+        )
 
         api_client = ApiClient(configuration)
         client = plaid_api.PlaidApi(api_client)
@@ -163,7 +167,9 @@ class PlaidUtils:
 
         while has_more:
             # Fetch transactions for the account
-            request = TransactionsSyncRequest(access_token=access_token, cursor=next_cursor, count=500)
+            request = TransactionsSyncRequest(
+                access_token=access_token, cursor=next_cursor, count=500
+            )
 
             response = self.plaid_client.transactions_sync(request)
             has_more = response["has_more"]

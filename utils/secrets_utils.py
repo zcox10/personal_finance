@@ -50,7 +50,7 @@ class SecretsUtils:
         return secrets_list
 
     def create_crypto_secrets_dict(self, secrets, project_id, version_id):
-        for k, v in secrets.items():
+        for v in secrets.values():
             decrypted_api_key = self.get_secrets(v["api_key"], project_id, version_id)
             v["api_key"] = decrypted_api_key
 
@@ -60,14 +60,16 @@ class SecretsUtils:
             v["addresses"] = decrypted_addresses
         return secrets
 
-    def create_secrets_dict(self, plaid_secret_type, project_id="zsc-personal", version_id="latest"):
+    def create_secrets_dict(
+        self, plaid_secret_type, project_id="zsc-personal", version_id="latest"
+    ):
         """
         Create a dictionary containing secrets.
 
         Args:
             secret_type (str): The type of secret to use.
-            project_id (str, optional): The ID of the Google Cloud project. Defaults to "zsc-personal".
-            version_id (str, optional): The version of the secret to retrieve. Defaults to "latest".
+            project_id (str, optional): ID of Google Cloud project. Defaults to "zsc-personal".
+            version_id (str, optional): Version of the secret to retrieve. Defaults to "latest".
 
         Returns:
             dict: A dictionary containing the secrets needed for the specified job.
@@ -108,7 +110,9 @@ class SecretsUtils:
             },
         }
 
-        crypto_secrets_dict = self.create_crypto_secrets_dict(crypto_secrets, project_id, version_id)
+        crypto_secrets_dict = self.create_crypto_secrets_dict(
+            crypto_secrets, project_id, version_id
+        )
         secrets_dict["CRYPTO_SECRETS"] = crypto_secrets_dict
 
         return secrets_dict

@@ -82,7 +82,9 @@ class PlaidTransactions:
         """
 
         # get plaid accounts. Stores access_token, item_id, and next cursor in df df
-        accounts_df = self._plaid_client.get_items_by_access_token(access_tokens, products=["transactions"])
+        accounts_df = self._plaid_client.get_items_by_access_token(
+            access_tokens, products=["transactions"]
+        )
         accounts_df = accounts_df[["item_id"]]
 
         # add empty cursor as next_cursor (fresh start)
@@ -95,7 +97,10 @@ class PlaidTransactions:
 
         # table should already be empty, so use WRITE_TRUNCATE
         return self._bq.load_df_to_bq(
-            accounts_df, plaid_cursors_bq.full_table_name, plaid_cursors_bq.table_schema, "WRITE_TRUNCATE"
+            accounts_df,
+            plaid_cursors_bq.full_table_name,
+            plaid_cursors_bq.table_schema,
+            "WRITE_TRUNCATE",
         )
 
     def add_cursor_to_bq(self, item_id, next_cursor, full_table_name, table_schema):
@@ -175,7 +180,9 @@ class PlaidTransactions:
         )
 
         self._bq.create_query_bq_table(
-            query=query, destination_table=plaid_cursors_bq_new.full_table_name, write_disposition=write_disposition
+            query=query,
+            destination_table=plaid_cursors_bq_new.full_table_name,
+            write_disposition=write_disposition,
         )
 
     def _create_removed_df(self, item_id, removed_transactions, removed_accounts, partition_date):
@@ -319,7 +326,9 @@ class PlaidTransactions:
             pending_transaction_ids.append(t["pending_transaction_id"])
 
             # personal finance
-            personal_finance_category_confidence_levels.append(t["personal_finance_category"]["confidence_level"])
+            personal_finance_category_confidence_levels.append(
+                t["personal_finance_category"]["confidence_level"]
+            )
             personal_finance_category_detailed.append(t["personal_finance_category"]["detailed"])
             personal_finance_category_primaries.append(t["personal_finance_category"]["primary"])
 
@@ -517,7 +526,10 @@ class PlaidTransactions:
 
         # upload df to plaid_removed_transactions_YYYYMMDD. "WRITE_APPEND" because multiple transaction_df's will be loaded
         return self._bq.load_df_to_bq(
-            removed_df, plaid_removed_bq.full_table_name, plaid_removed_bq.table_schema, "WRITE_APPEND"
+            removed_df,
+            plaid_removed_bq.full_table_name,
+            plaid_removed_bq.table_schema,
+            "WRITE_APPEND",
         )
 
     def upload_removed_df_list_to_bq(self, removed_df_list, offset, write_disposition):
@@ -540,7 +552,9 @@ class PlaidTransactions:
         else:
             print("No removed transactions present in concat_removed_df")
 
-    def generate_transactions_dfs(self, access_token, item_id, next_cursor, offset, add_test_transaction):
+    def generate_transactions_dfs(
+        self, access_token, item_id, next_cursor, offset, add_test_transaction
+    ):
         """
         Generate transactions_df and removed_df from Plaid API data.
 
@@ -556,13 +570,17 @@ class PlaidTransactions:
         """
         # retrieve transactions data from Plaid transactions_sync
         removed_transactions, removed_accounts, transactions_json, latest_cursor = (
-            self._plaid_client.get_transactions_data(access_token, next_cursor, add_test_transaction)
+            self._plaid_client.get_transactions_data(
+                access_token, next_cursor, add_test_transaction
+            )
         )
 
         # append added_df and modified_df to transactions_df_list.
         transactions_df_list = []
         added_df = self._create_transactions_df(transactions_json["added"], item_id, "ADDED")
-        modified_df = self._create_transactions_df(transactions_json["modified"], item_id, "MODIFIED")
+        modified_df = self._create_transactions_df(
+            transactions_json["modified"], item_id, "MODIFIED"
+        )
 
         # Only add to transactions_df_list if data is present
         if added_df is not None:
@@ -573,7 +591,9 @@ class PlaidTransactions:
 
         # create a final removed_df to store removed transactions. Returns None if no data available
         partition_date = self._bq.get_date(offset=offset, partition_format="YYYYMMDD").date()
-        removed_df = self._create_removed_df(item_id, removed_transactions, removed_accounts, partition_date)
+        removed_df = self._create_removed_df(
+            item_id, removed_transactions, removed_accounts, partition_date
+        )
 
         # return if there is no data available
         if len(transactions_df_list) == 0:

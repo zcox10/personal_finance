@@ -54,7 +54,9 @@ class GcpUtils:
             self.delete_pubsub_topic(schema.project_id, schema.trigger_topic, confirm)
 
         topic_path = self._pubsub_client.topic_path(schema.project_id, schema.trigger_topic)
-        topic = pubsub_v1.types.Topic(name=topic_path, labels=schema.labels, kms_key_name=schema.kms_key_name)
+        topic = pubsub_v1.types.Topic(
+            name=topic_path, labels=schema.labels, kms_key_name=schema.kms_key_name
+        )
 
         if schema.message_retention_duration:
             message_retention = duration_pb2.Duration(seconds=schema.message_retention_duration)
@@ -105,7 +107,9 @@ class GcpUtils:
         return {
             "http_target": {
                 "http_method": schema.http_method,
-                "uri": self.get_cloud_function_http_uri(schema.project_id, schema.region, schema.function_name),
+                "uri": self.get_cloud_function_http_uri(
+                    schema.project_id, schema.region, schema.function_name
+                ),
                 "headers": {"Content-Type": "application/json"},
             }
         }
@@ -132,12 +136,17 @@ class GcpUtils:
         }
 
         response = self._scheduler_client.create_job(parent=parent, job=job)
-        print(f'SUCCESS: Cloud Scheduler job, "{schema.job_name}", created with a {schema.target_type} target!')
+        print(
+            f'SUCCESS: Cloud Scheduler job, "{schema.job_name}", created with a {schema.target_type} target!'
+        )
         return response
 
     def does_cloud_function_exist(self, project_id, region, function_name):
         for function in self.list_cloud_functions(project_id, region):
-            if function.name == f"projects/{project_id}/locations/{region}/functions/{function_name}":
+            if (
+                function.name
+                == f"projects/{project_id}/locations/{region}/functions/{function_name}"
+            ):
                 return True
 
         return False
@@ -200,7 +209,12 @@ class GcpUtils:
     def run_cli_command(self, command, show_output=True):
         # Run the command
         process = subprocess.Popen(
-            command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            command,
+            shell=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
 
         # Get the output and error
