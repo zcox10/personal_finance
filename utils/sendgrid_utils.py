@@ -15,12 +15,13 @@ class SendgridUtils:
         {html_content_df}"""
 
     def chain_html_messages(self, messages: List[str]) -> str:
+        filtered_messges = [message for message in messages if message is not None]
         final_message = ""
-        for message in messages:
+        for message in filtered_messges:
             final_message += message
 
             # add break if not last message
-            if message != messages[-1]:
+            if message != filtered_messges[-1]:
                 final_message += "<br><br>"
         return final_message
 

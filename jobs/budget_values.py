@@ -267,7 +267,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Cash Withdrawal",
                 "detail_category": None,
-                "budget_amount": 0.0,
+                "budget_amount": -100.0,
             },
             {
                 "category_raw": "TRANSFER_OUT",  # CLUSTER FUCK - lots of transfers: BetterBrand (bagels), Palisades, from Checking -> Savings, and BoA -> Venmo/Zelle
@@ -474,7 +474,7 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Groceries",
                 "detail_category": None,
-                "budget_amount": -300.0,
+                "budget_amount": -400.0,
             },
             {
                 "category_raw": "FOOD_AND_DRINK",
@@ -482,7 +482,7 @@ class BudgetValues:
                 "category": "Personal Spending",
                 "subcategory": "Food and Drink",
                 "detail_category": "Restaurant",
-                "budget_amount": -50.0,
+                "budget_amount": -100.0,
             },
             {
                 "category_raw": "FOOD_AND_DRINK",
