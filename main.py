@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from utils.bq_utils import BqUtils
 from utils.secrets_utils import SecretsUtils
 from utils.plaid_utils import PlaidUtils
+from utils.sendgrid_utils import SendgridUtils
 
 # jobs
 from jobs.budget_values import BudgetValues
@@ -14,6 +15,7 @@ from jobs.financial_accounts import FinancialAccounts
 from jobs.plaid_transactions import PlaidTransactions
 from jobs.plaid_investments import PlaidInvestments
 from jobs.query_jobs import QueryJobs
+from jobs.data_quality_alerts import DataQualityAlerts
 
 # SECRETS
 secrets = SecretsUtils().create_secrets_dict(plaid_secret_type="PROD")
@@ -22,11 +24,13 @@ PLAID_SECRET = secrets["PLAID_SECRET_PROD"]
 PLAID_ACCESS_TOKENS = SecretsUtils().get_access_token_secrets(secrets)
 PLAID_HOST = plaid.Environment.Production
 CRYPTO_SECRETS = secrets["CRYPTO_SECRETS"]
+SENDGRID_KEY = secrets["SENDGRID_KEY"]
 
 # initialize main clients
 bq_client = bigquery.Client()
 bq = BqUtils(bq_client=bq_client)
 plaid_client = PlaidUtils(bq_client, PLAID_CLIENT_ID, PLAID_SECRET, PLAID_HOST)
+dqa = DataQualityAlerts(bq_client, SENDGRID_KEY)
 
 # CONSTANTS
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
@@ -177,6 +181,38 @@ def run_personal_finance_queries(request):
     return "hello-world"
 
 
+def run_dqa_checks(requeset):
+    print("\n******************** STARTING DQA checks ********************")
+
+    # current_date used in subject line
+    current_date = datetime.today().strftime("%Y-%m-%d")
+    from_email = "zach.s.cox@gmail.com"
+    dqa.send_alert_messages(
+        financial_accounts_sql_path="queries/dqa_financial_accounts.sql",
+        investment_holdings_sql_path="queries/dqa_investment_holdings.sql",
+        investment_transactions_sql_path="queries/dqa_investment_transactions.sql",
+        budget_values_sql_path="queries/dqa_budget_values.sql",
+        removed_transactions_sql_path="queries/dqa_removed_transactions.sql",
+        plaid_transactions_sql_path="queries/dqa_plaid_transactions.sql",
+        plaid_cursors_sql_path="queries/dqa_plaid_cursors.sql",
+        tableau_sql_path="queries/dqa_tableau.sql",
+        zero_threshold=0,
+        pct_chg_threshold=10,
+        from_email=from_email,
+        to_emails=["zach.s.cox+zsc-alerts@gmail.com"],
+        email_subject=f"{current_date} - ZSC Alerts",
+    )
+
+    dqa.send_status_message(
+        sql_path="queries/dqa_daily_status.sql",
+        from_email=from_email,
+        to_emails=["zach.s.cox+zsc-status@gmail.com"],
+        email_subject=f"{current_date} - ZSC Status",
+    )
+    print("SUCCESS: run_dqa_checks() complete!")
+    return "hello-world"
+
+
 def run_data_table_retention(request):
     print("\n******************** STARTING data_table_retention ********************")
 
@@ -232,19 +268,21 @@ def run_delete_latest_tables(request):
 
 
 def main(request):
-    run_delete_latest_tables("hello-world")
-    time.sleep(3)
-    run_financial_accounts("hello-world")
-    time.sleep(3)
-    run_budget_values("hello-world")
-    time.sleep(3)
-    run_plaid_investments("hello-world")
-    time.sleep(3)
-    run_plaid_transactions("hello-world")
-    time.sleep(3)
-    run_personal_finance_queries("hello-world")
-    time.sleep(3)
-    run_data_table_retention("hello-world")
+    # run_delete_latest_tables("hello-world")
+    # time.sleep(3)
+    # run_financial_accounts("hello-world")
+    # time.sleep(3)
+    # run_budget_values("hello-world")
+    # time.sleep(3)
+    # run_plaid_investments("hello-world")
+    # time.sleep(3)
+    # run_plaid_transactions("hello-world")
+    # time.sleep(3)
+    # run_personal_finance_queries("hello-world")
+    # time.sleep(3)
+    # run_data_table_retention("hello-world")
+    # time.sleep(3)
+    run_dqa_checks("hello-world")
 
     print("SUCCESS: all jobs complete!")
     return "hello-world"

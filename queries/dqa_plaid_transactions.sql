@@ -41,16 +41,6 @@ WITH
     detailed AS subcategory_raw
   FROM plaid_transactions
   WHERE detailed NOT IN ("TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS")
-  
-  -- test
-  UNION ALL
-  SELECT 
-    "NEW_CATEGORY" AS category_raw,
-    "NEW_CATEGORY_SUBCATEGORY" AS subcategory_raw,
-  UNION ALL
-  SELECT 
-    "NEW_CATEGORY_2" AS category_raw,
-    "NEW_CATEGORY_2_SUBCATEGORY" AS subcategory_raw,
   )
   , budget_values_categories AS (
   SELECT DISTINCT 
