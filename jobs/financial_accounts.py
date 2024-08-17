@@ -32,7 +32,9 @@ class FinancialAccounts:
         products = []
         billed_products = []
 
-        crypto_balances = self._crypto.get_crypto_balances(eth_addresses, btc_addresses, eth_api_key, btc_api_key)
+        crypto_balances = self._crypto.get_crypto_balances(
+            eth_addresses, btc_addresses, eth_api_key, btc_api_key
+        )
 
         # if no results, return None
         if len(crypto_balances) == 0:
@@ -80,7 +82,9 @@ class FinancialAccounts:
                 "institution_name": pd.Series(institution_names, dtype="str"),
                 "balance": balances,
                 "update_type": pd.Series(update_types, dtype="str"),
-                "consent_expiration_time": pd.Series(consent_expiration_times, dtype="datetime64[ns]"),
+                "consent_expiration_time": pd.Series(
+                    consent_expiration_times, dtype="datetime64[ns]"
+                ),
                 "products": products,
                 "billed_products": billed_products,
             }
@@ -158,7 +162,9 @@ class FinancialAccounts:
 
         institutions_dict = {}
         for institution_id in distinct_institutions:
-            institution = self._plaid_client.get_institution_by_id(institution_id, plaid_country_codes)
+            institution = self._plaid_client.get_institution_by_id(
+                institution_id, plaid_country_codes
+            )
             institution_name = institution["institution"]["name"]
             institutions_dict[institution_id] = institution_name
 
@@ -179,12 +185,15 @@ class FinancialAccounts:
                 "account_official_name": pd.Series(account_official_names, dtype="str"),
                 "account_type": pd.Series(account_types, dtype="str"),
                 "account_subtype": pd.Series(account_subtypes, dtype="str"),
-                "account_source": ["PLAID"] * len(item_ids),  # indicates account originates from Plaid
+                "account_source": ["PLAID"]
+                * len(item_ids),  # indicates account originates from Plaid
                 "institution_id": pd.Series(institution_ids, dtype="str"),
                 "institution_name": pd.Series(institution_names, dtype="str"),
                 "balance": balances,
                 "update_type": pd.Series(update_types, dtype="str"),
-                "consent_expiration_time": pd.Series(consent_expiration_times, dtype="datetime64[ns]"),
+                "consent_expiration_time": pd.Series(
+                    consent_expiration_times, dtype="datetime64[ns]"
+                ),
                 "products": products,
                 "billed_products": billed_products,
             }
@@ -215,7 +224,9 @@ class FinancialAccounts:
             get_accts_df = self._bq.query(accts_q)
 
             # determine if there are any duplicate persistent_account_id's
-            get_persistent_account_ids = [i for i in get_accts_df["persistent_account_id"].unique() if i is not None]
+            get_persistent_account_ids = [
+                i for i in get_accts_df["persistent_account_id"].unique() if i is not None
+            ]
             duplicate_persistent_account_ids = [
                 i for i in accounts_df["persistent_account_id"] if i in get_persistent_account_ids
             ]
@@ -264,7 +275,13 @@ class FinancialAccounts:
             sys.exit(1)
 
     def create_final_accounts_df(
-        self, plaid_access_tokens, plaid_country_codes, eth_addresses, btc_addresses, eth_api_key, btc_api_key
+        self,
+        plaid_access_tokens,
+        plaid_country_codes,
+        eth_addresses,
+        btc_addresses,
+        eth_api_key,
+        btc_api_key,
     ):
         # list to store df's in for BQ upload
         df_list = []
@@ -275,7 +292,9 @@ class FinancialAccounts:
             if accounts_df is not None:
                 df_list.append(accounts_df)
 
-        crypto_df = self._create_crypto_accounts_df(eth_addresses, btc_addresses, eth_api_key, btc_api_key)
+        crypto_df = self._create_crypto_accounts_df(
+            eth_addresses, btc_addresses, eth_api_key, btc_api_key
+        )
         if crypto_df is not None:
             df_list.append(crypto_df)
 
@@ -317,7 +336,12 @@ class FinancialAccounts:
 
         # create accounts_df to upload to BQ
         accounts_df = self.create_final_accounts_df(
-            plaid_access_tokens, plaid_country_codes, eth_addresses, btc_addresses, eth_api_key, btc_api_key
+            plaid_access_tokens,
+            plaid_country_codes,
+            eth_addresses,
+            btc_addresses,
+            eth_api_key,
+            btc_api_key,
         )
         if accounts_df is not None:
             self._bq.load_df_to_bq(
@@ -326,6 +350,8 @@ class FinancialAccounts:
                 financial_accounts_bq.table_schema,
                 write_disposition,
             )
-            print(f"SUCCESS: all access tokens added to `{financial_accounts_bq.full_table_name}`\n")
+            print(
+                f"SUCCESS: all access tokens added to `{financial_accounts_bq.full_table_name}`\n"
+            )
         else:
             print("No accounts present in accounts_df")

@@ -28,8 +28,8 @@ class PlaidInvestments:
         investments_holdings_json = self._plaid_client.get_investment_holdings_data(access_token)
         holdings_df = self._create_holdings_df(investments_holdings_json)
 
-        investment_transactions_json, securities_json, item_id = self._plaid_client.get_investment_transactions_data(
-            start_date, end_date, access_token
+        investment_transactions_json, securities_json, item_id = (
+            self._plaid_client.get_investment_transactions_data(start_date, end_date, access_token)
         )
 
         investment_transactions_df = self._create_investment_transactions_df(
@@ -56,7 +56,9 @@ class PlaidInvestments:
         holdings_df_list = []
         investment_transactions_df_list = []
         for token in access_tokens:
-            holdings_df, investment_transactions_df = self.generate_investments_dfs(start_date, end_date, token)
+            holdings_df, investment_transactions_df = self.generate_investments_dfs(
+                start_date, end_date, token
+            )
 
             if holdings_df is not None:
                 holdings_df_list.append(holdings_df)
@@ -118,8 +120,12 @@ class PlaidInvestments:
                 "account_id": pd.Series(account_ids, dtype="str"),
                 "cost_basis": pd.Series(cost_basis, dtype="float64"),
                 "institution_price": pd.Series(institution_prices, dtype="float64"),
-                "institution_price_date": pd.Series(institution_price_dates, dtype="datetime64[ns]"),
-                "institution_price_datetime": pd.Series(institution_price_datetimes, dtype="datetime64[ns]"),
+                "institution_price_date": pd.Series(
+                    institution_price_dates, dtype="datetime64[ns]"
+                ),
+                "institution_price_datetime": pd.Series(
+                    institution_price_datetimes, dtype="datetime64[ns]"
+                ),
                 "institution_value": pd.Series(institution_values, dtype="float64"),
                 "currency_code": pd.Series(currency_codes, dtype="str"),
                 "unofficial_currency_code": pd.Series(unofficial_currency_codes, dtype="str"),
@@ -231,7 +237,9 @@ class PlaidInvestments:
                     "contract_type": j["option_contract"]["contract_type"],
                     "expiration_date": j["option_contract"]["expiration_date"],
                     "strike_price": j["option_contract"]["strike_price"],
-                    "underlying_security_ticker": j["option_contract"]["underlying_security_ticker"],
+                    "underlying_security_ticker": j["option_contract"][
+                        "underlying_security_ticker"
+                    ],
                 }
 
             securities_dict[j["security_id"]] = {
@@ -325,7 +333,9 @@ class PlaidInvestments:
             "WRITE_APPEND",
         )
 
-    def upload_investment_transactions_df_list_to_bq(self, investment_transactions_df_list, offset, write_disposition):
+    def upload_investment_transactions_df_list_to_bq(
+        self, investment_transactions_df_list, offset, write_disposition
+    ):
         """
         Upload a list of investment transactions DataFrames to BigQuery.
 

@@ -10,7 +10,9 @@ class DataQualityAlerts:
         self._bq = BqUtils(bq_client=bq_client)
         self._sendgrid = SendgridUtils(sendgrid_api_key=sendgrid_api_key)
 
-    def get_single_bq_table_to_check(self, full_table_name: str, partition_type: str) -> Tuple[str, str]:
+    def get_single_bq_table_to_check(
+        self, full_table_name: str, partition_type: str
+    ) -> Tuple[str, str]:
         split_table_identifiers = full_table_name.split(".")
         dataset_id = split_table_identifiers[1]
         table_id = split_table_identifiers[2]
@@ -22,7 +24,9 @@ class DataQualityAlerts:
             self._bq.get_table_suffix(full_table_name.split(".")[2], table_prefix),
         )
 
-    def get_latest_bq_tables_to_check(self, full_table_name: str, partition_type: str) -> List[Tuple[str, str]]:
+    def get_latest_bq_tables_to_check(
+        self, full_table_name: str, partition_type: str
+    ) -> List[Tuple[str, str]]:
         """
         0d signifies the latest partition date
         1d signifies the penultimate (second-to-latest) partition date
@@ -79,13 +83,19 @@ class DataQualityAlerts:
             df=df,
         )
 
-    def create_diff_alert(self, df: pd.DataFrame, zero_threshold: int, excluded_metric_name: str) -> Any:
+    def create_diff_alert(
+        self, df: pd.DataFrame, zero_threshold: int, excluded_metric_name: str
+    ) -> Any:
         """
         Gather all columns starting with total_ and not {change_col} (via pct chg) from provided df.
         These will be used to count the number of entities in partition_0d vs. partition_1d.
         If there is a diff in the counts, throw an alert
         """
-        count_cols = [col for col in df.columns if col.startswith("total_") and excluded_metric_name not in col]
+        count_cols = [
+            col
+            for col in df.columns
+            if col.startswith("total_") and excluded_metric_name not in col
+        ]
         diff_cols = [col for col in count_cols if "diff" in col]
 
         if df[diff_cols].sum().sum() != zero_threshold:
@@ -107,7 +117,9 @@ class DataQualityAlerts:
             return df[["partition_0d", "partition_1d"] + chg_cols]
         return None
 
-    def create_pct_chg_alert_message(self, df: pd.DataFrame, table_name: str, pct_chg_threshold: int) -> str:
+    def create_pct_chg_alert_message(
+        self, df: pd.DataFrame, table_name: str, pct_chg_threshold: int
+    ) -> str:
         return self._sendgrid.create_html_message_with_pandas_df(
             intro_text=f"Entity value pct chg in <b>{table_name}</b> for partition_0d vs. partition_1d is > {pct_chg_threshold}%",
             df=df,
@@ -141,7 +153,9 @@ class DataQualityAlerts:
             df=df,
         )
 
-    def financial_accounts_full_check(self, sql_path: str, zero_threshold: int, pct_chg_threshold: int) -> List[str]:
+    def financial_accounts_full_check(
+        self, sql_path: str, zero_threshold: int, pct_chg_threshold: int
+    ) -> List[str]:
         final_messages = []
 
         # generate main df
@@ -167,11 +181,15 @@ class DataQualityAlerts:
         # pct chg check
         pct_chg_df = self.create_pct_chg_alert(df, pct_chg_threshold, metric_name="account_value")
         if pct_chg_df is not None:
-            final_messages.append(self.create_pct_chg_alert_message(pct_chg_df, table_name, pct_chg_threshold))
+            final_messages.append(
+                self.create_pct_chg_alert_message(pct_chg_df, table_name, pct_chg_threshold)
+            )
 
         return final_messages
 
-    def investment_holdings_full_check(self, sql_path: str, zero_threshold: int, pct_chg_threshold: int) -> List[str]:
+    def investment_holdings_full_check(
+        self, sql_path: str, zero_threshold: int, pct_chg_threshold: int
+    ) -> List[str]:
         final_messages = []
 
         # generate main df
@@ -190,14 +208,20 @@ class DataQualityAlerts:
             final_messages.append(self.create_null_alert_message(null_df, table_name))
 
         # diff check
-        diff_df = self.create_diff_alert(df, zero_threshold, excluded_metric_name="investment_value")
+        diff_df = self.create_diff_alert(
+            df, zero_threshold, excluded_metric_name="investment_value"
+        )
         if diff_df is not None:
             final_messages.append(self.create_diff_alert_message(diff_df, table_name))
 
         # pct chg check
-        pct_chg_df = self.create_pct_chg_alert(df, pct_chg_threshold, metric_name="investment_value")
+        pct_chg_df = self.create_pct_chg_alert(
+            df, pct_chg_threshold, metric_name="investment_value"
+        )
         if pct_chg_df is not None:
-            final_messages.append(self.create_pct_chg_alert_message(pct_chg_df, table_name, pct_chg_threshold))
+            final_messages.append(
+                self.create_pct_chg_alert_message(pct_chg_df, table_name, pct_chg_threshold)
+            )
 
         return final_messages
 
@@ -226,7 +250,9 @@ class DataQualityAlerts:
 
         return final_messages
 
-    def budget_values_full_check(self, sql_path: str, zero_threshold: int, pct_chg_threshold: int) -> List[str]:
+    def budget_values_full_check(
+        self, sql_path: str, zero_threshold: int, pct_chg_threshold: int
+    ) -> List[str]:
         final_messages = []
 
         # generate main df
@@ -252,7 +278,9 @@ class DataQualityAlerts:
         # pct chg check
         pct_chg_df = self.create_pct_chg_alert(df, pct_chg_threshold, metric_name="budget_amount")
         if pct_chg_df is not None:
-            final_messages.append(self.create_pct_chg_alert_message(pct_chg_df, table_name, pct_chg_threshold))
+            final_messages.append(
+                self.create_pct_chg_alert_message(pct_chg_df, table_name, pct_chg_threshold)
+            )
 
         return final_messages
 
@@ -327,7 +355,9 @@ class DataQualityAlerts:
         # empty table check (0 rows)
         category_df = self.create_missing_category_alert(df, zero_threshold)
         if category_df is not None:
-            final_messages.append(self.create_missing_category_alert_message(category_df, table_name))
+            final_messages.append(
+                self.create_missing_category_alert_message(category_df, table_name)
+            )
 
         return final_messages
 
@@ -360,8 +390,12 @@ class DataQualityAlerts:
         removed_transactions_messages = self.removed_transactions_full_check(
             removed_transactions_sql_path, zero_threshold
         )
-        plaid_transactions_messages = self.plaid_transactions_full_check(plaid_transactions_sql_path, zero_threshold)
-        plaid_cursors_messages = self.plaid_cursors_full_check(plaid_cursors_sql_path, zero_threshold)
+        plaid_transactions_messages = self.plaid_transactions_full_check(
+            plaid_transactions_sql_path, zero_threshold
+        )
+        plaid_cursors_messages = self.plaid_cursors_full_check(
+            plaid_cursors_sql_path, zero_threshold
+        )
 
         # list of html strings for each alert
         return (
@@ -405,7 +439,10 @@ class DataQualityAlerts:
         if len(messages) > 0:
             html_message = self._sendgrid.chain_html_messages(messages)
             email_message = self._sendgrid.construct_email_message(
-                from_email=from_email, to_emails=to_emails, email_subject=email_subject, html_message=html_message
+                from_email=from_email,
+                to_emails=to_emails,
+                email_subject=email_subject,
+                html_message=html_message,
             )
             self._sendgrid.send_email(email_message)
         else:

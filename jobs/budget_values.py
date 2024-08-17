@@ -66,7 +66,9 @@ class BudgetValues:
         """
 
         budget_schema = self._budget_schema()
-        updated_schema = self._update_budget_schema_with_backfill_values(budget_schema, partition_month)
+        updated_schema = self._update_budget_schema_with_backfill_values(
+            budget_schema, partition_month
+        )
 
         return pd.DataFrame(
             updated_schema,
@@ -99,7 +101,9 @@ class BudgetValues:
             offset=offset,
         )
 
-        partition_month = self._bq.get_date(offset, partition_format="YYYYMM").replace(day=1).strftime("%Y-%m-%d")
+        partition_month = (
+            self._bq.get_date(offset, partition_format="YYYYMM").replace(day=1).strftime("%Y-%m-%d")
+        )
 
         # get budget_values_df
         budget_values_df = self._create_budget_values_df(partition_month)
