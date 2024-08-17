@@ -23,26 +23,16 @@ PLAID_ACCESS_TOKENS = SecretsUtils().get_access_token_secrets(secrets)
 PLAID_HOST = plaid.Environment.Production
 CRYPTO_SECRETS = secrets["CRYPTO_SECRETS"]
 
-# CONSTANTS: general
-WRITE_DISPOSITION = "WRITE_TRUNCATE"
-OFFSET = 0
-
-# CONSTANTS: plaid transactions
-BACKFILL = False
-ADD_TEST_TRANSACTIONS = False  # to add a removed transaction or not in generate_transactions_dfs()
-
-# CONSTANTS: plaid investments
-START_DATE = (  # if backfill, use 730 days ago as START_DATE. Else, use (7 + OFFSET) days ago today
-    (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
-    if BACKFILL
-    else (datetime.now() - timedelta(days=(7 + OFFSET))).strftime("%Y-%m-%d")
-)
-END_DATE = (datetime.now() - timedelta(days=(6 + OFFSET))).strftime("%Y-%m-%d")
-
 # initialize main clients
 bq_client = bigquery.Client()
 bq = BqUtils(bq_client=bq_client)
 plaid_client = PlaidUtils(bq_client, PLAID_CLIENT_ID, PLAID_SECRET, PLAID_HOST)
+
+# CONSTANTS
+WRITE_DISPOSITION = "WRITE_TRUNCATE"
+OFFSET = 0  # for which partition to write to in BQ
+BACKFILL = False  # to backfill plaid_investment_transactions and plaid_transactions
+ADD_TEST_TRANSACTIONS = False  # to add a removed transaction or not in generate_transactions_dfs()
 
 
 def run_financial_accounts(request):
@@ -131,6 +121,14 @@ def run_plaid_transactions(request):
 
 def run_plaid_investments(request):
     print("\n******************** STARTING plaid_investments ********************")
+
+    # CONSTANTS: plaid investments
+    START_DATE = (  # if backfill, use 730 days ago as START_DATE. Else, use (7 + OFFSET) days ago today
+        (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
+        if BACKFILL
+        else (datetime.now() - timedelta(days=(7 + OFFSET))).strftime("%Y-%m-%d")
+    )
+    END_DATE = (datetime.now() - timedelta(days=(6 + OFFSET))).strftime("%Y-%m-%d")
 
     # init client
     plaid_investments = PlaidInvestments(bq_client, plaid_client)
@@ -225,36 +223,24 @@ def run_delete_latest_tables(request):
     return "hello-world"
 
 
-# def main_test(request):
-#     run_delete_latest_tables("hello-world")
+def main(request):
+    run_delete_latest_tables("hello-world")
+    time.sleep(3)
+    run_financial_accounts("hello-world")
+    time.sleep(3)
+    run_budget_values("hello-world")
+    time.sleep(3)
+    run_plaid_investments("hello-world")
+    time.sleep(3)
+    run_plaid_transactions("hello-world")
+    time.sleep(3)
+    run_personal_finance_queries("hello-world")
+    time.sleep(3)
+    run_data_table_retention("hello-world")
 
-#     time.sleep(3)
-
-#     run_financial_accounts("hello-world")
-
-#     time.sleep(3)
-
-#     run_budget_values("hello-world")
-
-#     time.sleep(3)
-
-#     run_plaid_investments("hello-world")
-
-#     time.sleep(3)
-
-#     run_plaid_transactions("hello-world")
-
-#     time.sleep(3)
-
-#     run_personal_finance_queries("hello-world")
-
-#     time.sleep(3)
-
-#     run_data_table_retention("hello-world")
-
-#     print("SUCCESS: main_test() complete!")
-#     return "hello-world"
+    print("SUCCESS: all jobs complete!")
+    return "hello-world"
 
 
-# if __name__ == "__main__":
-#     main_test("hello-world")
+if __name__ == "__main__":
+    main("hello-world")
