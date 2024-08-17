@@ -10,7 +10,18 @@ class SendgridUtils:
         self._sendgrid_api_key = sendgrid_api_key
 
     def create_html_message_with_pandas_df(self, intro_text: str, df: pd.DataFrame) -> str:
-        html_content_df = df.to_html(index=False)
+        # add 3 spaces to col width to enhance readability in email
+        df = df.map(lambda x: str(x) + "   ")
+
+        # convert to html;
+        # align all text to right for readability;
+        # add 5 spaces to each col name and value (&nbsp; -> non-breaking space)
+        html_content_df = (
+            df.to_html(index=False)
+            .replace("<td>", '<td style="text-align: right;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;')
+            .replace("<th>", "<th>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
+        )
+
         return f"""<p>{intro_text}</p>
         {html_content_df}"""
 

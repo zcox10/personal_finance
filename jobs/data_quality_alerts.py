@@ -67,6 +67,22 @@ class DataQualityAlerts:
             table_suffix_1d=tables[1][1],
         )
 
+    def custom_tableau_query(self, sql_path: str, full_table_name: str, partition_type: str) -> str:
+        tableau_tables = self.get_latest_bq_tables_to_check(full_table_name, partition_type)
+        financial_account_tables = self.get_single_bq_table_to_check(
+            full_table_name="zsc-personal.personal_finance.financial_accounts_YYYYMMDD",
+            partition_type="YYYYMMDD",
+        )
+        query = self._bq.sql_file_to_string(sql_path)
+        return query.format(
+            full_table_name_0d=tableau_tables[0][0],
+            table_suffix_0d=tableau_tables[0][1],
+            full_table_name_1d=tableau_tables[1][0],
+            table_suffix_1d=tableau_tables[1][1],
+            financial_accounts_table_0d=financial_account_tables[0],
+            financial_accounts_table_suffix_0d=financial_account_tables[1],
+        )
+
     def create_null_alert(self, df: pd.DataFrame, zero_threshold: int, partition_field_name: str):
         """
         Gather all columns starting with null_ from provided df, then add up the values.
@@ -84,7 +100,11 @@ class DataQualityAlerts:
         )
 
     def create_diff_alert(
-        self, df: pd.DataFrame, zero_threshold: int, excluded_metric_name: str
+        self,
+        df: pd.DataFrame,
+        partition_fields: List[str],
+        zero_threshold: int,
+        excluded_metric_names: List[str],
     ) -> Any:
         """
         Gather all columns starting with total_ and not {change_col} (via pct chg) from provided df.
@@ -94,12 +114,13 @@ class DataQualityAlerts:
         count_cols = [
             col
             for col in df.columns
-            if col.startswith("total_") and excluded_metric_name not in col
+            if col.startswith("total_")
+            and not any(excluded_metric in col for excluded_metric in excluded_metric_names)
         ]
         diff_cols = [col for col in count_cols if "diff" in col]
 
         if df[diff_cols].sum().sum() != zero_threshold:
-            return df[["partition_0d", "partition_1d"] + count_cols]
+            return df[partition_fields + count_cols]
         return None
 
     def create_diff_alert_message(self, df: pd.DataFrame, table_name: str) -> str:
@@ -174,7 +195,12 @@ class DataQualityAlerts:
             final_messages.append(self.create_null_alert_message(null_df, table_name))
 
         # diff check
-        diff_df = self.create_diff_alert(df, zero_threshold, excluded_metric_name="account_value")
+        diff_df = self.create_diff_alert(
+            df=df,
+            partition_fields=["partition_0d", "partition_1d"],
+            zero_threshold=zero_threshold,
+            excluded_metric_names=["account_value"],
+        )
         if diff_df is not None:
             final_messages.append(self.create_diff_alert_message(diff_df, table_name))
 
@@ -209,7 +235,10 @@ class DataQualityAlerts:
 
         # diff check
         diff_df = self.create_diff_alert(
-            df, zero_threshold, excluded_metric_name="investment_value"
+            df=df,
+            partition_fields=["partition_0d", "partition_1d"],
+            zero_threshold=zero_threshold,
+            excluded_metric_names=["investment_value"],
         )
         if diff_df is not None:
             final_messages.append(self.create_diff_alert_message(diff_df, table_name))
@@ -271,7 +300,12 @@ class DataQualityAlerts:
             final_messages.append(self.create_null_alert_message(null_df, table_name))
 
         # diff check
-        diff_df = self.create_diff_alert(df, zero_threshold, excluded_metric_name="budget_amount")
+        diff_df = self.create_diff_alert(
+            df=df,
+            partition_fields=["partition_0d", "partition_1d"],
+            zero_threshold=zero_threshold,
+            excluded_metric_names=["budget_amount"],
+        )
         if diff_df is not None:
             final_messages.append(self.create_diff_alert_message(diff_df, table_name))
 
@@ -361,6 +395,82 @@ class DataQualityAlerts:
 
         return final_messages
 
+    def tableau_full_check(
+        self, sql_path: str, zero_threshold: int, pct_chg_threshold: int
+    ) -> List[str]:
+        final_messages = []
+
+        # generate main df
+        table_name = "personal_finance_tableau_YYYYMMDD"
+        df = self._bq.query(
+            self.custom_tableau_query(
+                sql_path,
+                full_table_name=f"zsc-personal.personal_finance.{table_name}",
+                partition_type="YYYYMMDD",
+            )
+        )
+
+        # null check
+        null_df = self.create_null_alert(df, zero_threshold, partition_field_name="partition_0d")
+        if null_df is not None:
+            final_messages.append(self.create_null_alert_message(null_df, table_name))
+
+        # diff check
+        diff_df = self.create_diff_alert(
+            df=df,
+            partition_fields=["partition_0d", "partition_1d", "partition_fin_accts"],
+            zero_threshold=zero_threshold,
+            excluded_metric_names=["account_summed_value", "actual_amount"],
+        )
+        if diff_df is not None:
+            final_messages.append(self.create_diff_alert_message(diff_df, table_name))
+
+        # pct chg check
+        account_summed_value_pct_chg_df = self.create_pct_chg_alert(
+            df, pct_chg_threshold, metric_name="account_summed_value"
+        )
+        if account_summed_value_pct_chg_df is not None:
+            final_messages.append(
+                self.create_pct_chg_alert_message(
+                    account_summed_value_pct_chg_df, table_name, pct_chg_threshold
+                )
+            )
+
+        actual_amount_pct_chg_df = self.create_pct_chg_alert(
+            df, pct_chg_threshold, metric_name="actual_amount"
+        )
+        if actual_amount_pct_chg_df is not None:
+            final_messages.append(
+                self.create_pct_chg_alert_message(
+                    actual_amount_pct_chg_df, table_name, pct_chg_threshold
+                )
+            )
+
+        return final_messages
+
+    def send_status_message(
+        self,
+        sql_path: str,
+        from_email: str,
+        to_emails: List[str],
+        email_subject: str,
+    ) -> List[str]:
+
+        df = self._bq.query(self._bq.sql_file_to_string(sql_path))
+
+        html_message = self._sendgrid.create_html_message_with_pandas_df(
+            intro_text=f"Status check for <b>personal_finance</b> tables",
+            df=df,
+        )
+
+        email_message = self._sendgrid.construct_email_message(
+            from_email=from_email,
+            to_emails=to_emails,
+            email_subject=email_subject,
+            html_message=html_message,
+        )
+        self._sendgrid.send_email(email_message)
+
     # FINAL MESSAGES
     def aggregate_alerts(
         self,
@@ -371,6 +481,7 @@ class DataQualityAlerts:
         removed_transactions_sql_path,
         plaid_transactions_sql_path,
         plaid_cursors_sql_path,
+        tableau_sql_path,
         zero_threshold,
         pct_chg_threshold,
     ):
@@ -396,6 +507,9 @@ class DataQualityAlerts:
         plaid_cursors_messages = self.plaid_cursors_full_check(
             plaid_cursors_sql_path, zero_threshold
         )
+        tableau_messages = self.tableau_full_check(
+            tableau_sql_path, zero_threshold, pct_chg_threshold
+        )
 
         # list of html strings for each alert
         return (
@@ -406,6 +520,7 @@ class DataQualityAlerts:
             + removed_transactions_messages
             + plaid_transactions_messages
             + plaid_cursors_messages
+            + tableau_messages
         )
 
     def send_alert_messages(
@@ -417,6 +532,7 @@ class DataQualityAlerts:
         removed_transactions_sql_path,
         plaid_transactions_sql_path,
         plaid_cursors_sql_path,
+        tableau_sql_path,
         zero_threshold,
         pct_chg_threshold,
         from_email,
@@ -431,6 +547,7 @@ class DataQualityAlerts:
             removed_transactions_sql_path,
             plaid_transactions_sql_path,
             plaid_cursors_sql_path,
+            tableau_sql_path,
             zero_threshold,
             pct_chg_threshold,
         )
@@ -446,4 +563,4 @@ class DataQualityAlerts:
             )
             self._sendgrid.send_email(email_message)
         else:
-            print("SUCCESS: No messages to send :)")
+            print("SUCCESS: No alert messages to send :)")
