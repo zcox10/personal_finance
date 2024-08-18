@@ -133,7 +133,7 @@ WITH
       WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK"
       
       -- education
-      WHEN STARTSWITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES"
+      WHEN STARTS_WITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES"
 
       -- shopping
       WHEN merchant.merchant_name = "Amazon Prime" THEN "GENERAL_MERCHANDISE"
@@ -199,7 +199,7 @@ WITH
       WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK_OTHER_FOOD_AND_DRINK"
       
       -- education
-      WHEN STARTSWITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES_EDUCATION"
+      WHEN STARTS_WITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES_EDUCATION"
 
       -- shopping
       WHEN merchant.merchant_name = "Amazon Prime" THEN "GENERAL_MERCHANDISE_ONLINE_MARKETPLACES"
