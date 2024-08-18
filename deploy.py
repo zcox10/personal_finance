@@ -27,8 +27,8 @@ def main():
         print("\n\nCREATE FUNCTION:", schema.function_name)
         gcp.create_cloud_function(schema=schema, show_output=True)
 
-        print("\n\nCREATE SCHEDULER:", schema.job_name)
-        gcp.create_scheduler_job(schema=schema, confirm=False)
+        # print("\n\nCREATE SCHEDULER:", schema.job_name)
+        # gcp.create_scheduler_job(schema=schema, confirm=False)
 
         # # delete methods
         # gcp.delete_pubsub_topic(schema.project_id, schema.trigger_topic, confirm=False)
