@@ -87,6 +87,15 @@ class CloudSchemas:
             schedule="0 11 * * *",  # 11:00am UTC
         )
 
+    def personal_finance(self) -> dict:
+        return CloudSchema(
+            entry_point="main",
+            function_name="personal-finance-workflow",
+            trigger_topic="personal-finance-pubsub",
+            job_name="personal-finance-scheduler",
+            schedule="0 10 * * *",  # 10:00am UTC
+        )
+
     def test_job(self) -> dict:
         return CloudSchema(
             entry_point="main_test",

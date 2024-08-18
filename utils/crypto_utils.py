@@ -25,7 +25,12 @@ class CryptoUtils:
 
         # generate request
         response = requests.post(url, json=payload, headers=headers)
-        balance_info = response.json()
+        try:
+            balance_info = response.json()
+        except requests.exceptions.JSONDecodeError as e:
+            print(f"Failed to decode JSON response: {e}")
+            print(f"Response Status Code: {response.status_code}")
+            print(f"Response Text: {response.text}")
 
         # sum up balance of all BTC addresses
         balance = 0

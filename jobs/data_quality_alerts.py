@@ -309,12 +309,13 @@ class DataQualityAlerts:
         if diff_df is not None:
             final_messages.append(self.create_diff_alert_message(diff_df, table_name))
 
-        # pct chg check
-        pct_chg_df = self.create_pct_chg_alert(df, pct_chg_threshold, metric_name="budget_amount")
-        if pct_chg_df is not None:
-            final_messages.append(
-                self.create_pct_chg_alert_message(pct_chg_df, table_name, pct_chg_threshold)
-            )
+        # commenting out because budget changes cause this alert to be quite sensitive
+        # # pct chg check
+        # pct_chg_df = self.create_pct_chg_alert(df, pct_chg_threshold, metric_name="budget_amount")
+        # if pct_chg_df is not None:
+        #     final_messages.append(
+        #         self.create_pct_chg_alert_message(pct_chg_df, table_name, pct_chg_threshold)
+        #     )
 
         return final_messages
 

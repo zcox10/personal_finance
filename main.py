@@ -251,7 +251,7 @@ def run_delete_latest_tables(request):
         "plaid_transactions_YYYYMMDD",
         "temp_plaid_cursors",
         "plaid_investment_holdings_YYYYMMDD",
-        # "plaid_investment_transactions_YYYYMMDD",
+        "plaid_investment_transactions_YYYYMMDD",
         "personal_finance_tableau_YYYYMMDD",
     ]
 
@@ -270,23 +270,23 @@ def run_delete_latest_tables(request):
 def main(request):
     # run_delete_latest_tables("hello-world")
     # time.sleep(3)
-    # run_financial_accounts("hello-world")
-    # time.sleep(3)
-    # run_budget_values("hello-world")
-    # time.sleep(3)
-    # run_plaid_investments("hello-world")
-    # time.sleep(3)
-    # run_plaid_transactions("hello-world")
-    # time.sleep(3)
-    # run_personal_finance_queries("hello-world")
-    # time.sleep(3)
-    # run_data_table_retention("hello-world")
-    # time.sleep(3)
+    run_financial_accounts("hello-world")
+    time.sleep(3)
+    run_budget_values("hello-world")
+    time.sleep(3)
+    run_plaid_investments("hello-world")
+    time.sleep(3)
+    run_plaid_transactions("hello-world")
+    time.sleep(3)
+    run_personal_finance_queries("hello-world")
+    time.sleep(3)
+    run_data_table_retention("hello-world")
+    time.sleep(3)
     run_dqa_checks("hello-world")
 
     print("SUCCESS: all jobs complete!")
     return "hello-world"
 
 
-if __name__ == "__main__":
-    main("hello-world")
+# if __name__ == "__main__":
+#     main("hello-world")
