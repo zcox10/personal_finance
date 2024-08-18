@@ -10,12 +10,13 @@ def main():
 
     # schemas to create jobs for
     schemas = [
-        cs.financial_accounts(),
-        cs.budget_values(),
-        cs.plaid_transactions(),
-        cs.plaid_investments(),
-        cs.personal_finance_queries(),
-        cs.data_table_retention(),
+        cs.personal_finance(),
+        # cs.financial_accounts(),
+        # cs.budget_values(),
+        # cs.plaid_transactions(),
+        # cs.plaid_investments(),
+        # cs.personal_finance_queries(),
+        # cs.data_table_retention(),
         # cs.test_job(),
     ]
 
@@ -32,7 +33,9 @@ def main():
         # # delete methods
         # gcp.delete_pubsub_topic(schema.project_id, schema.trigger_topic, confirm=False)
         # gcp.delete_scheduler_job(schema.project_id, schema.region, schema.job_name, confirm=False)
-        # gcp.delete_cloud_function(schema.project_id, schema.region, schema.function_name, confirm=False)
+        # gcp.delete_cloud_function(
+        #     schema.project_id, schema.region, schema.function_name, confirm=False
+        # )
 
 
 if __name__ == "__main__":
