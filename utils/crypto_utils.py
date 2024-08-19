@@ -1,3 +1,4 @@
+import time
 import requests
 import numpy as np
 
@@ -12,7 +13,7 @@ class CryptoUtils:
         Retrieve the BTC balance of all addresses via xpub
 
         Args:
-            xpub_key (str): The BTC xpub
+            btc_address (str): The BTC address
 
         Returns:
             float: The balance in BTC
@@ -23,14 +24,28 @@ class CryptoUtils:
         payload = {"addr": f"{btc_address}"}
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-        # generate request
-        response = requests.post(url, json=payload, headers=headers)
-        try:
-            balance_info = response.json()
-        except requests.exceptions.JSONDecodeError as e:
-            print(f"Failed to decode JSON response: {e}")
-            print(f"Response Status Code: {response.status_code}")
-            print(f"Response Text: {response.text}")
+        # blockonomics can be finnicky, retry max 3 times - else fail
+        max_attempts = 3
+        attempts = 0
+        while attempts < max_attempts:
+            attempts += 1
+            # generate request
+            response = requests.post(url, json=payload, headers=headers)
+            try:
+                balance_info = response.json()
+                break  # Exit the loop if successful
+            except requests.exceptions.JSONDecodeError as e:
+                print(f"Attempt {attempts} failed: Failed to decode JSON response: {e}")
+                print(f"Response Status Code: {response.status_code}")
+                print(f"Response Text: {response.text}")
+                if attempts < max_attempts:
+                    print("Retrying in 15 seconds...")
+                    time.sleep(15)
+                else:
+                    print("Max attempts reached. Exiting.")
+
+        if attempts == max_attempts and "balance_info" not in locals():
+            raise Exception("Failed to retrieve BTC balance after 3 attempts")
 
         # sum up balance of all BTC addresses
         balance = 0
