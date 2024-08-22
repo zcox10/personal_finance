@@ -18,6 +18,7 @@ python-Levenshtein==0.25.1
 # notebooks/plotting packages
 notebook==7.0.7
 matplotlib==3.9.2
+ipykernel==6.29.5
 
 # sending emails
 sendgrid==6.11.0
@@ -28,3 +29,8 @@ plaid_python==21.0.0
 # type checking
 mypy==1.11.1
 pandas-stubs==2.2.2.240807
+
+# gpt
+tiktoken==0.7.0
+openai==1.42.0
+pyyaml==6.0.2
