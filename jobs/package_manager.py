@@ -48,12 +48,13 @@ class PackageManager:
         self.uninstall_packages(packages_to_uninstall)
         print("\n\nUNINSTALL COMPLETE")
 
-        path_to_requirements = "../requirements.txt"
-        print(f"\n\nINSTALL PACKAGES IN {path_to_requirements}\n\n")
-        self.install_packages_via_requirements(path_to_requirements)
-        print("\nINSTALL COMPLETE")
+        requirements_files = ["../requirements.txt", "../requirements-dev.txt"]
+        for path in requirements_files:
+            print(f"\n\nINSTALL PACKAGES IN {path}\n\n")
+            self.install_packages_via_requirements(path)
+            print("\nINSTALL COMPLETE")
 
 
 if __name__ == "__main__":
-    manager = PackageManager()
-    manager.main()
+    pm = PackageManager()
+    pm.main()

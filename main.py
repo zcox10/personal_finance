@@ -270,6 +270,8 @@ def run_delete_latest_tables(request):
 def main(request):
     # run_delete_latest_tables("hello-world")
     # time.sleep(3)
+
+    # PROD
     run_financial_accounts("hello-world")
     time.sleep(3)
     run_budget_values("hello-world")
