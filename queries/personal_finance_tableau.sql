@@ -129,10 +129,15 @@ WITH
         OR REGEXP_CONTAINS(merchant.name, r"Irina Tesis")
       THEN "RENT_AND_UTILITIES"
 
+      -- laundry
+      WHEN merchant.merchant_name = "Hercules Corp" THEN "PERSONAL_CARE"
+
       -- food/drink
+      WHEN merchant.merchant_name = "Cb & Cb Pima Crossing" THEN "FOOD_AND_DRINK"
       WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK"
       
       -- education
+      WHEN merchant.name = "EB *10TH ANNUAL BLOOMB" THEN "GENERAL_SERVICES"
       WHEN STARTS_WITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES"
 
       -- shopping
@@ -195,10 +200,15 @@ WITH
       -- personal payment transfers
       WHEN personal_finance_category.detailed = "TRANSFER_OUT_ACCOUNT_TRANSFER" AND merchant.merchant_name NOT IN ("Venmo", "Zelle", "Bank of America", "Chase Bank") THEN "TRANSFER_OUT_OTHER_TRANSFER_OUT"
 
+      -- laundry
+      WHEN merchant.merchant_name = "Hercules Corp" THEN "PERSONAL_CARE_LAUNDRY_AND_DRY_CLEANING"
+
       -- food/drink
+      WHEN merchant.merchant_name = "Cb & Cb Pima Crossing" THEN "FOOD_AND_DRINK_RESTAURANT"
       WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK_OTHER_FOOD_AND_DRINK"
       
       -- education
+      WHEN merchant.name = "EB *10TH ANNUAL BLOOMB" THEN "GENERAL_SERVICES_EDUCATION"
       WHEN STARTS_WITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES_EDUCATION"
 
       -- shopping
