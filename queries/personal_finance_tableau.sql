@@ -111,6 +111,9 @@ WITH
       -- income/deposits
       WHEN merchant.merchant_name = "Spotify" AND amount < 0 THEN "INCOME"
 
+      -- atm
+      WHEN merchant.name LIKE "%WITHDRWL KAPIL GROCER%" THEN "TRANSFER_OUT"
+
       -- investments
       WHEN
         ( -- if CREDIT amount (amount < 0), then income deposit (TRANSFER_IN); else TRANSFER_OUT
@@ -171,6 +174,9 @@ WITH
 
       -- income/deposits
       WHEN merchant.merchant_name = "Spotify" AND amount < 0 THEN "INCOME_WAGES"
+
+      -- atm
+      WHEN merchant.name LIKE "%WITHDRWL KAPIL GROCER%" THEN "TRANSFER_OUT_WITHDRAWAL"
 
       -- investments / IN
       WHEN
