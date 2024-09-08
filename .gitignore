@@ -9,7 +9,7 @@
 secrets.yaml
 
 # dirs
-__pycache__/
-.mypy_cache/
-notebooks/
+__pycache__
+.mypy_cache
 notebooks
+.vscode
