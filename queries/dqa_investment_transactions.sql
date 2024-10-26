@@ -1,4 +1,4 @@
-SELECT 
+SELECT
   PARSE_DATE("%Y%m%d", "{table_suffix_0d}") AS partition_0d,
   COUNTIF(item_id IS NULL) AS null_items,
   COUNTIF(account_id IS NULL) AS null_accounts,
@@ -13,4 +13,5 @@ SELECT
   COUNTIF(investment_subtype IS NULL) AS null_investment_subtypes,
   COUNTIF(currency_code IS NULL) AS null_currency_codes,
   COUNT(1) AS total_rows,
-FROM `{full_table_name_0d}`
+FROM
+  `{full_table_name_0d}`
