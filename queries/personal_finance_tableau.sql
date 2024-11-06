@@ -140,9 +140,12 @@ WITH
         -- food/drink
         WHEN merchant.merchant_name = "Cb & Cb Pima Crossing" THEN "FOOD_AND_DRINK"
         WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK"
+        WHEN merchant.merchant_name = "Ollieseats" THEN "FOOD_AND_DRINK"
         -- education
         WHEN merchant.name = "EB *10TH ANNUAL BLOOMB" THEN "GENERAL_SERVICES"
         WHEN STARTS_WITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES"
+        WHEN merchant.merchant_name = "Cu Pawprint" THEN "GENERAL_SERVICES"
+        WHEN REGEXP_EXTRACT(merchant.name, r"^(.*?)(?: DES:|$)") = "COLUMBIA" THEN "GENERAL_SERVICES"
         -- shopping
         WHEN merchant.merchant_name = "Amazon Prime" THEN "GENERAL_MERCHANDISE"
         -- phone
@@ -198,9 +201,12 @@ WITH
         -- food/drink
         WHEN merchant.merchant_name = "Cb & Cb Pima Crossing" THEN "FOOD_AND_DRINK_RESTAURANT"
         WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK_OTHER_FOOD_AND_DRINK"
+        WHEN merchant.merchant_name = "Ollieseats" THEN "FOOD_AND_DRINK_RESTAURANT"
         -- education
         WHEN merchant.name = "EB *10TH ANNUAL BLOOMB" THEN "GENERAL_SERVICES_EDUCATION"
         WHEN STARTS_WITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES_EDUCATION"
+        WHEN merchant.merchant_name = "Cu Pawprint" THEN "GENERAL_SERVICES_EDUCATION"
+        WHEN REGEXP_EXTRACT(merchant.name, r"^(.*?)(?: DES:|$)") = "COLUMBIA" THEN "GENERAL_SERVICES_EDUCATION"
         -- shopping
         WHEN merchant.merchant_name = "Amazon Prime" THEN "GENERAL_MERCHANDISE_ONLINE_MARKETPLACES"
         -- phone

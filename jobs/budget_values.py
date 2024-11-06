@@ -811,7 +811,7 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Storage",
                 "detail_category": None,
-                "budget_amount": 0.0,
+                "budget_amount": -100.0,
             },
             {
                 "category_raw": "GENERAL_SERVICES",
@@ -827,7 +827,7 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Tech",
                 "detail_category": None,
-                "budget_amount": -4.0,
+                "budget_amount": -26,
             },
             # GOVERNMENT_AND_NON_PROFIT
             {
