@@ -153,8 +153,9 @@ WITH
         -- tech
         WHEN merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI")
         OR STARTS_WITH(merchant.name, "CLOUD") THEN "GENERAL_SERVICES"
-        -- cannabis
+        -- entertainment
         WHEN merchant.merchant_name IN ("Tru Med") THEN "ENTERTAINMENT"
+        WHEN LOWER(merchant.name) LIKE "%footprint center%" THEN "ENTERTAINMENT"
         -- utilities
         WHEN (
           REGEXP_CONTAINS(merchant.name, r"Hamza Bencheikh")
@@ -216,6 +217,7 @@ WITH
         OR STARTS_WITH(merchant.name, "CLOUD") THEN "GENERAL_SERVICES_TECH"
         -- cannabis
         WHEN merchant.merchant_name IN ("Tru Med") THEN "ENTERTAINMENT_OTHER_ENTERTAINMENT"
+        WHEN LOWER(merchant.name) LIKE "%footprint center%" THEN "ENTERTAINMENT_SPORTING_EVENTS_AMUSEMENT_PARKS_AND_MUSEUMS"
         -- utilities
         WHEN (
           REGEXP_CONTAINS(merchant.name, r"Hamza Bencheikh")
