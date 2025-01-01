@@ -249,7 +249,7 @@ WITH
       LEFT JOIN accounts_distinct acct USING (item_id, account_id)
     WHERE
       -- only include partitions >= previous year i.e. 2024-07-23 would return all partitions >= 2023-01-01
-      t.transaction_date >= DATE_TRUNC(DATE_ADD(CURRENT_DATE(), INTERVAL -1 YEAR), YEAR)
+      t.transaction_date >= DATE_TRUNC(DATE_ADD(CURRENT_DATE(), INTERVAL -2 YEAR), YEAR)
       -- if removed transaction is present and removed date >= transaction_date, remove the transaciton
       -- else, even if removed transaction is present and date_removed < transaction_date, keep transaction
       AND IF(r.transaction_id IS NOT NULL, r.date_removed < transaction_date, TRUE)
