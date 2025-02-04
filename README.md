@@ -66,4 +66,5 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. **Run the Project**: `python main.py`
+4. **Run and Deploy Project**
+The project will run with `python main.py` and running `python deploy.py` will deploy via GCP
