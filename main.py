@@ -246,12 +246,12 @@ def run_delete_latest_tables(request):
     print("\n******************** STARTING delete_latest_tables ********************")
     tables = [
         "financial_accounts_YYYYMMDD",
-        "plaid_cursors_YYYYMMDD",
-        "plaid_removed_transactions_YYYYMMDD",
-        "plaid_transactions_YYYYMMDD",
-        "temp_plaid_cursors",
         "plaid_investment_holdings_YYYYMMDD",
         "plaid_investment_transactions_YYYYMMDD",
+        "plaid_transactions_YYYYMMDD",
+        "plaid_removed_transactions_YYYYMMDD",
+        "plaid_cursors_YYYYMMDD",
+        "temp_plaid_cursors",
         "personal_finance_tableau_YYYYMMDD",
     ]
 
