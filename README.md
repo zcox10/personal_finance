@@ -22,7 +22,10 @@ By leveraging the **Plaid API**, this tool securely pulls transaction and invest
 - **Tableau**: For creating interactive dashboards to visualize financial data.
 - **SendGrid API**: For sending automated alerts regarding data quality and budget performance.
 - **Python**: Main programming language used for data ingestion, processing, and automation.
-- **YAML**: Used for securely managing secrets and configuration settings.
+- **Google Secrets Manager**: Used for securely managing secrets and configuration settings.
+- **Google Cloud PubSub**: To generate a data pipeline that runs after each successive job.
+- **Google Cloud Scheduler**: For scheduling jobs to run on a daily cadence.
+- **Google Cloud Functions**: To run the python scripts for data processing.
 - **Jupyter Notebooks**: For exploratory data analysis and testing.
 
 ## How It Works
@@ -63,6 +66,4 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. **Configure Secrets**: update `secrets.yaml` with your Plaid API keys, Google Cloud credentials, and SendGrid API key.
-
-5. **Run the Project**: `python main.py`
+4. **Run the Project**: `python main.py`
