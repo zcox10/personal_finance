@@ -222,7 +222,7 @@ def run_data_table_retention(request):
     RETENTION_DATE = (datetime.now() - timedelta(days=(29))).strftime("%Y%m%d")
 
     tables = [
-        # "plaid_cursors_YYYYMMDD",
+        "plaid_cursors_YYYYMMDD",
         "personal_finance_tableau_YYYYMMDD",
     ]
 
