@@ -103,6 +103,13 @@ class FinancialAccounts:
         """
         responses = self._plaid_client.get_accounts(access_token)
 
+        # For debugging, do not include access token in error logs
+        # try:
+        #     responses = self._plaid_client.get_accounts(access_token)
+        # except Exception as e:
+        #     print(f"Access token: {access_token} account retrieval failed. {str(e)}")
+        #     sys.exit(1)
+
         # only continue if data is present
         if len(responses["accounts"]) == 0:
             return None
