@@ -20,8 +20,7 @@ class CryptoUtils:
         """
 
         # define request
-        url = "https://www.blockonomics.co/api/balance"
-        payload = {"addr": f"{btc_address}"}
+        url = f"https://www.blockonomics.co/api/balance?addr={btc_address}"
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
         # blockonomics can be finnicky, retry max 3 times - else fail
@@ -30,7 +29,7 @@ class CryptoUtils:
         while attempts < max_attempts:
             attempts += 1
             # generate request
-            response = requests.post(url, json=payload, headers=headers)
+            response = requests.get(url, headers=headers)
             try:
                 balance_info = response.json()
                 break  # Exit the loop if successful
