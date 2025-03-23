@@ -827,7 +827,7 @@ class BudgetValues:
                 "category": "Expenses",
                 "subcategory": "Tech",
                 "detail_category": None,
-                "budget_amount": -26,
+                "budget_amount": -36.88,
             },
             # GOVERNMENT_AND_NON_PROFIT
             {
