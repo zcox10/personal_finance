@@ -141,21 +141,23 @@ WITH
         WHEN merchant.merchant_name = "Cb & Cb Pima Crossing" THEN "FOOD_AND_DRINK"
         WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK"
         WHEN merchant.merchant_name = "Ollieseats" THEN "FOOD_AND_DRINK"
+        WHEN merchant.merchant_name = "Blanco" THEN "FOOD_AND_DRINK"
         -- education
         WHEN merchant.name = "EB *10TH ANNUAL BLOOMB" THEN "GENERAL_SERVICES"
         WHEN STARTS_WITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES"
         WHEN merchant.merchant_name = "Cu Pawprint" THEN "GENERAL_SERVICES"
         WHEN REGEXP_EXTRACT(merchant.name, r"^(.*?)(?: DES:|$)") = "COLUMBIA" THEN "GENERAL_SERVICES"
         -- shopping
-        WHEN merchant.merchant_name = "Amazon Prime" THEN "GENERAL_MERCHANDISE"
+        WHEN merchant.merchant_name IN ("Amazon Prime", "Drscholls", "Nike") THEN "GENERAL_MERCHANDISE"
         -- phone
         WHEN merchant.merchant_name = "Apple" THEN "RENT_AND_UTILITIES"
         -- tech
-        WHEN merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI")
+        WHEN merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI", "1Password", "Colab", "Medium Annual")
         OR STARTS_WITH(merchant.name, "CLOUD") THEN "GENERAL_SERVICES"
         -- entertainment
-        WHEN merchant.merchant_name IN ("Tru Med") THEN "ENTERTAINMENT"
+        WHEN merchant.merchant_name IN ("Tru Med", "IGN") THEN "ENTERTAINMENT"
         WHEN LOWER(merchant.name) LIKE "%footprint center%" THEN "ENTERTAINMENT"
+        WHEN merchant.name LIKE "%FLOWERY UPPER WS%" THEN "ENTERTAINMENT"
         -- utilities
         WHEN (
           REGEXP_CONTAINS(merchant.name, r"Hamza Bencheikh")
@@ -203,6 +205,7 @@ WITH
         WHEN merchant.merchant_name = "Cb & Cb Pima Crossing" THEN "FOOD_AND_DRINK_RESTAURANT"
         WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK_OTHER_FOOD_AND_DRINK"
         WHEN merchant.merchant_name = "Ollieseats" THEN "FOOD_AND_DRINK_RESTAURANT"
+        WHEN merchant.merchant_name = "Blanco" THEN "FOOD_AND_DRINK_RESTAURANT"
         -- education
         WHEN merchant.name = "EB *10TH ANNUAL BLOOMB" THEN "GENERAL_SERVICES_EDUCATION"
         WHEN STARTS_WITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES_EDUCATION"
@@ -210,14 +213,17 @@ WITH
         WHEN REGEXP_EXTRACT(merchant.name, r"^(.*?)(?: DES:|$)") = "COLUMBIA" THEN "GENERAL_SERVICES_EDUCATION"
         -- shopping
         WHEN merchant.merchant_name = "Amazon Prime" THEN "GENERAL_MERCHANDISE_ONLINE_MARKETPLACES"
+        WHEN merchant.merchant_name IN ("Drscholls", "Nike") THEN "GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES"
         -- phone
         WHEN merchant.merchant_name = "Apple" THEN "RENT_AND_UTILITIES_TELEPHONE"
         -- tech
-        WHEN merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI")
+        WHEN merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI", "1Password", "Colab", "Medium Annual")
         OR STARTS_WITH(merchant.name, "CLOUD") THEN "GENERAL_SERVICES_TECH"
         -- cannabis
         WHEN merchant.merchant_name IN ("Tru Med") THEN "ENTERTAINMENT_OTHER_ENTERTAINMENT"
+        WHEN merchant.name LIKE "%FLOWERY UPPER WS%" THEN "ENTERTAINMENT_OTHER_ENTERTAINMENT"
         WHEN LOWER(merchant.name) LIKE "%footprint center%" THEN "ENTERTAINMENT_SPORTING_EVENTS_AMUSEMENT_PARKS_AND_MUSEUMS"
+        WHEN merchant.merchant_name IN ("IGN") THEN "ENTERTAINMENT_VIDEO_GAMES"
         -- utilities
         WHEN (
           REGEXP_CONTAINS(merchant.name, r"Hamza Bencheikh")
