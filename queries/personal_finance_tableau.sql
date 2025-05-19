@@ -131,6 +131,7 @@ WITH
         ) THEN IF(amount < 0, "TRANSFER_IN", "TRANSFER_OUT")
         -- transportation
         WHEN merchant.merchant_name = "Downtown Tempe Authority" THEN "TRANSPORTATION"
+        WHEN merchant.merchant_name = "OMNY" THEN "TRANSPORTATION"
         -- rent
         WHEN REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in")
         OR merchant.merchant_name = "Pay Ready Parent"
@@ -152,7 +153,7 @@ WITH
         -- phone
         WHEN merchant.merchant_name = "Apple" THEN "RENT_AND_UTILITIES"
         -- tech
-        WHEN merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI", "1Password", "Colab", "Medium Annual")
+        WHEN merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI", "1Password", "Colab", "Medium Annual", "Linkedinpre")
         OR STARTS_WITH(merchant.name, "CLOUD") THEN "GENERAL_SERVICES"
         -- entertainment
         WHEN merchant.merchant_name IN ("Tru Med", "IGN") THEN "ENTERTAINMENT"
@@ -192,6 +193,7 @@ WITH
         AND amount > 0 THEN "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS_STOCKS"
         -- transportation
         WHEN merchant.merchant_name = "Downtown Tempe Authority" THEN "TRANSPORTATION_PARKING"
+        WHEN merchant.merchant_name = "OMNY" THEN "TRANSPORTATION_PUBLIC_TRANSIT"
         -- rent
         WHEN REGEXP_CONTAINS(LOWER(merchant.name), r"the palisades in")
         OR merchant.merchant_name = "Pay Ready Parent"
@@ -217,7 +219,7 @@ WITH
         -- phone
         WHEN merchant.merchant_name = "Apple" THEN "RENT_AND_UTILITIES_TELEPHONE"
         -- tech
-        WHEN merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI", "1Password", "Colab", "Medium Annual")
+        WHEN merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI", "1Password", "Colab", "Medium Annual", "Linkedinpre")
         OR STARTS_WITH(merchant.name, "CLOUD") THEN "GENERAL_SERVICES_TECH"
         -- cannabis
         WHEN merchant.merchant_name IN ("Tru Med") THEN "ENTERTAINMENT_OTHER_ENTERTAINMENT"
