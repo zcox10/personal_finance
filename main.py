@@ -1,21 +1,22 @@
 import time
-import plaid
-from google.cloud import bigquery
 from datetime import datetime, timedelta
 
-# utils
-from utils.bq_utils import BqUtils
-from utils.secrets_utils import SecretsUtils
-from utils.plaid_utils import PlaidUtils
-from utils.sendgrid_utils import SendgridUtils
+import plaid
+from google.cloud import bigquery
 
 # jobs
 from jobs.budget_values import BudgetValues
-from jobs.financial_accounts import FinancialAccounts
-from jobs.plaid_transactions import PlaidTransactions
-from jobs.plaid_investments import PlaidInvestments
-from jobs.query_jobs import QueryJobs
 from jobs.data_quality_alerts import DataQualityAlerts
+from jobs.financial_accounts import FinancialAccounts
+from jobs.plaid_investments import PlaidInvestments
+from jobs.plaid_transactions import PlaidTransactions
+from jobs.query_jobs import QueryJobs
+
+# utils
+from utils.bq_utils import BqUtils
+from utils.plaid_utils import PlaidUtils
+from utils.secrets_utils import SecretsUtils
+from utils.sendgrid_utils import SendgridUtils
 
 # SECRETS
 secrets = SecretsUtils().create_secrets_dict(plaid_secret_type="PROD")
@@ -34,7 +35,7 @@ dqa = DataQualityAlerts(bq_client, SENDGRID_KEY)
 
 # CONSTANTS
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
-OFFSET = 0  # for which partition to write to in BQ
+OFFSET = -1  # for which partition to write to in BQ
 BACKFILL = False  # to backfill plaid_investment_transactions and plaid_transactions
 ADD_TEST_TRANSACTIONS = False  # to add a removed transaction or not in generate_transactions_dfs()
 

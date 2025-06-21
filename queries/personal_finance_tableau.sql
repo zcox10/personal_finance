@@ -143,6 +143,7 @@ WITH
         WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK"
         WHEN merchant.merchant_name = "Ollieseats" THEN "FOOD_AND_DRINK"
         WHEN merchant.merchant_name = "Blanco" THEN "FOOD_AND_DRINK"
+        WHEN merchant.merchant_name = "Bangersaustin.co" THEN "FOOD_AND_DRINK"
         -- education
         WHEN merchant.name = "EB *10TH ANNUAL BLOOMB" THEN "GENERAL_SERVICES"
         WHEN STARTS_WITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES"
@@ -153,8 +154,20 @@ WITH
         -- phone
         WHEN merchant.merchant_name = "Apple" THEN "RENT_AND_UTILITIES"
         -- tech
-        WHEN merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI", "1Password", "Colab", "Medium Annual", "Linkedinpre")
+        WHEN LOWER(merchant.merchant_name) IN (
+          "plaid technologies inc",
+          "openai",
+          "1password",
+          "colab",
+          "medium annual",
+          "linkedinpre",
+          "claude.ai",
+          "stealthinterview.ai",
+          "cursor ai powered ide"
+        )
         OR STARTS_WITH(merchant.name, "CLOUD") THEN "GENERAL_SERVICES"
+        -- travel
+        WHEN STARTS_WITH(merchant.name, "MR IRVINE SPECTRUM") THEN "TRAVEL"
         -- entertainment
         WHEN merchant.merchant_name IN ("Tru Med", "IGN") THEN "ENTERTAINMENT"
         WHEN LOWER(merchant.name) LIKE "%footprint center%" THEN "ENTERTAINMENT"
@@ -208,6 +221,7 @@ WITH
         WHEN merchant.merchant_name = "Ryze" THEN "FOOD_AND_DRINK_OTHER_FOOD_AND_DRINK"
         WHEN merchant.merchant_name = "Ollieseats" THEN "FOOD_AND_DRINK_RESTAURANT"
         WHEN merchant.merchant_name = "Blanco" THEN "FOOD_AND_DRINK_RESTAURANT"
+        WHEN merchant.merchant_name = "Bangersaustin.co" THEN "FOOD_AND_DRINK_RESTAURANT"
         -- education
         WHEN merchant.name = "EB *10TH ANNUAL BLOOMB" THEN "GENERAL_SERVICES_EDUCATION"
         WHEN STARTS_WITH(merchant.name, "SEAS GRAD") THEN "GENERAL_SERVICES_EDUCATION"
@@ -219,9 +233,21 @@ WITH
         -- phone
         WHEN merchant.merchant_name = "Apple" THEN "RENT_AND_UTILITIES_TELEPHONE"
         -- tech
-        WHEN merchant.merchant_name IN ("Plaid Technologies Inc", "OpenAI", "1Password", "Colab", "Medium Annual", "Linkedinpre")
+        WHEN LOWER(merchant.merchant_name) IN (
+          "plaid technologies inc",
+          "openai",
+          "1password",
+          "colab",
+          "medium annual",
+          "linkedinpre",
+          "claude.ai",
+          "stealthinterview.ai",
+          "cursor ai powered ide"
+        )
         OR STARTS_WITH(merchant.name, "CLOUD") THEN "GENERAL_SERVICES_TECH"
-        -- cannabis
+        -- travel
+        WHEN STARTS_WITH(merchant.name, "MR IRVINE SPECTRUM") THEN "TRAVEL_LODGING"
+        -- entertainment (other)
         WHEN merchant.merchant_name IN ("Tru Med") THEN "ENTERTAINMENT_OTHER_ENTERTAINMENT"
         WHEN merchant.name LIKE "%FLOWERY UPPER WS%" THEN "ENTERTAINMENT_OTHER_ENTERTAINMENT"
         WHEN LOWER(merchant.name) LIKE "%footprint center%" THEN "ENTERTAINMENT_SPORTING_EVENTS_AMUSEMENT_PARKS_AND_MUSEUMS"
